@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>CLIFF - Career Intelligence</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 360px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #090d16;
+      color: #f1f5f9;
+      padding: 16px;
+      font-size: 13px;
+      line-height: 1.4;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1e293b;
+      margin-bottom: 14px;
+    }
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-icon {
+      width: 26px;
+      height: 26px;
+      background: linear-gradient(135deg, #14b8a6, #06b6d4);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 900;
+      font-size: 14px;
+      color: #042f2e;
+    }
+    .brand-name {
+      font-weight: 800;
+      font-size: 15px;
+      letter-spacing: -0.02em;
+      color: #ffffff;
+    }
+    .status-badge {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      font-weight: 600;
+      padding: 3px 8px;
+      border-radius: 20px;
+      background: #0f172a;
+      border: 1px solid #1e293b;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .status-online { background-color: #10b981; box-shadow: 0 0 8px #10b981; }
+    .status-offline { background-color: #ef4444; }
+
+    .card {
+      background: #0f172a;
+      border: 1px solid #1e293b;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+
+    .card-title {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s ease;
+      border: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #14b8a6, #0d9488);
+      color: #042f2e;
+      font-weight: 700;
+      box-shadow: 0 4px 12px rgba(20, 184, 166, 0.2);
+    }
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #2dd4bf, #14b8a6);
+      transform: translateY(-1px);
+    }
+    .btn-secondary {
+      background: #1e293b;
+      color: #cbd5e1;
+      border: 1px solid #334155;
+    }
+    .btn-secondary:hover {
+      background: #334155;
+      color: #ffffff;
+    }
+
+    .info-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 10px;
+      border-top: 1px solid #1e293b;
+      font-size: 11px;
+    }
+    .link {
+      color: #2dd4bf;
+      text-decoration: none;
+      font-weight: 600;
+    }
+    .link:hover {
+      text-decoration: underline;
+    }
+
+    #job-preview {
+      display: none;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #1e293b;
+    }
+    .preview-title {
+      font-weight: 600;
+      color: #ffffff;
+      font-size: 12px;
+      margin-bottom: 2px;
+    }
+    .preview-company {
+      color: #2dd4bf;
+      font-size: 11px;
+    }
+  </style>
+</head>
+<body>
+  
+  <!-- Header -->
+  <div class="header">
+    <div class="logo-container">
+      <div class="logo-icon">⚡</div>
+      <span class="brand-name">CLIFF</span>
+    </div>
+    <div id="backend-status" class="status-badge">
+      <span id="status-dot" class="status-dot status-offline"></span>
+      <span id="status-text">Checking API...</span>
+    </div>
+  </div>
+
+  <!-- Page Context Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>Page Detection</span>
+      <span id="detection-pill" style="font-size: 10px; color: #2dd4bf;">Detecting...</span>
+    </div>
+
+    <!-- LinkedIn Scraper action -->
+    <div id="linkedin-section" style="display: none;">
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">
+        Job posting identified. Click below to parse requirements & match score.
+      </p>
+      <button id="btn-scrape" class="btn btn-primary">
+        <span>⚡ Ingest Job to CLIFF</span>
+      </button>
+
+      <div id="job-preview">
+        <div id="preview-title" class="preview-title"></div>
+        <div id="preview-company" class="preview-company"></div>
+      </div>
+    </div>
+
+    <!-- ATS Autofill action -->
+    <div id="ats-section" style="display: none;">
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">
+        Candidate application form detected. Click below to inject your master profile.
+      </p>
+      <button id="btn-autofill" class="btn btn-primary">
+        <span>⚡ Autofill Form Fields</span>
+      </button>
+    </div>
+
+    <!-- Generic Page action -->
+    <div id="generic-section">
+      <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">
+        Navigate to any LinkedIn job or ATS application form (Greenhouse, Lever, Workday) to trigger automated workflows.
+      </p>
+      <button id="btn-scrape-generic" class="btn btn-secondary">
+        <span>Scan Page for Job Details</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- Background Session Sync Card -->
+  <div class="card">
+    <div class="card-title">
+      <span>Background Session Sync</span>
+      <span style="font-size: 9px; color: #10b981;">AUTO 15m</span>
+    </div>
+    <p style="font-size: 11px; color: #94a3b8; margin-bottom: 8px;">
+      Monitors open Workday/ATS tabs using session cookies to detect status changes.
+    </p>
+    <button id="btn-sync-now" class="btn btn-secondary">
+      <span>🔄 Sync Active Tabs Now</span>
+    </button>
+    <div class="info-row">
+      <span>Last sync:</span>
+      <span id="last-sync-label">Just now</span>
+    </div>
+  </div>
+
+  <!-- Footer Navigation -->
+  <div class="footer">
+    <a href="http://localhost:5173" target="_blank" class="link">
+      Open React Dashboard ↗
+    </a>
+    <span style="color: #64748b; font-size: 10px;">Local-First v1.0</span>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
+
