@@ -53,85 +53,80 @@ export default function JobDetailModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="bg-slate-900 border border-slate-800 w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-stone-900/40 backdrop-blur-xs animate-in fade-in duration-200">
+      <div className="bg-white border border-stone-200 w-full max-w-5xl max-h-[90vh] rounded-2xl shadow-xl flex flex-col overflow-hidden">
         
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-800/80 flex items-start justify-between bg-slate-950/40">
+        <div className="p-6 border-b border-stone-200 flex items-start justify-between bg-[#FAF8F5]">
           <div className="space-y-2 max-w-2xl">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-slate-800 text-teal-400 border border-slate-700">
+              <span className="text-xs uppercase font-semibold tracking-wider px-2.5 py-0.5 rounded-full bg-white text-stone-700 border border-stone-200">
                 {job.source || "LinkedIn"}
               </span>
 
               {job.is_easy_apply && (
-                <span className="text-xs font-semibold bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 px-2.5 py-0.5 rounded-full flex items-center gap-1">
-                  <Zap className="w-3 h-3 fill-emerald-400" />
+                <span className="text-xs font-semibold bg-[#EFF6F1] text-[#2C6E49] border border-[#D4E8DC] px-2.5 py-0.5 rounded-full flex items-center gap-1">
+                  <Zap className="w-3 h-3 fill-[#2C6E49]" />
                   <span>Easy Apply</span>
                 </span>
               )}
 
               {job.workplace_type && (
-                <span className={`text-xs px-2.5 py-0.5 rounded-full flex items-center gap-1 font-semibold border ${
-                  job.workplace_type.toLowerCase().includes("remote") ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/30" :
-                  job.workplace_type.toLowerCase().includes("hybrid") ? "bg-purple-500/15 text-purple-300 border-purple-500/30" :
-                  job.workplace_type.toLowerCase().includes("on-site") || job.workplace_type.toLowerCase().includes("onsite") ? "bg-blue-500/15 text-blue-300 border-blue-500/30" :
-                  "bg-slate-800/90 text-slate-300 border-slate-700/80"
-                }`}>
-                  <Briefcase className="w-3 h-3 text-teal-400" />
+                <span className="text-xs bg-white text-stone-700 border border-stone-200 px-2.5 py-0.5 rounded-full flex items-center gap-1 font-medium">
+                  <Briefcase className="w-3 h-3 text-[#C25E38]" />
                   <span>{job.workplace_type}</span>
                 </span>
               )}
 
               {job.employment_type && (
-                <span className="text-xs bg-slate-800/90 text-slate-300 border border-slate-700/80 px-2.5 py-0.5 rounded-full">
+                <span className="text-xs bg-white text-stone-600 border border-stone-200 px-2.5 py-0.5 rounded-full">
                   {job.employment_type}
                 </span>
               )}
 
-              <span className="text-xs text-slate-400 flex items-center gap-1.5">
+              <span className="text-xs text-stone-600 flex items-center gap-1.5">
                 {job.company_logo ? (
                   <img 
                     src={job.company_logo} 
                     alt={job.company} 
-                    className="w-4 h-4 rounded object-contain bg-white/5 border border-slate-700 shrink-0" 
+                    className="w-4 h-4 rounded object-contain bg-white border border-stone-200 shrink-0" 
                     onError={(e) => { e.target.style.display = 'none'; }}
                   />
                 ) : (
-                  <Building2 className="w-3.5 h-3.5 text-slate-500" />
+                  <Building2 className="w-3.5 h-3.5 text-stone-400" />
                 )}
                 {job.company_url ? (
-                  <a href={job.company_url} target="_blank" rel="noreferrer" className="hover:text-teal-300 underline flex items-center gap-1">
+                  <a href={job.company_url} target="_blank" rel="noreferrer" className="hover:text-[#B34B22] underline flex items-center gap-1">
                     {job.company}
                   </a>
                 ) : (
-                  <span>{job.company}</span>
+                  <span className="font-medium text-stone-800">{job.company}</span>
                 )}
               </span>
 
               {job.location && (
-                <span className="text-xs text-slate-400 flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
+                <span className="text-xs text-stone-500 flex items-center gap-1">
+                  <MapPin className="w-3.5 h-3.5 text-stone-400" />
                   {job.location}
                 </span>
               )}
 
               {job.applicant_count && (
-                <span className="text-xs text-slate-500 flex items-center gap-1">
-                  <Users className="w-3 h-3 text-slate-500" />
+                <span className="text-xs text-stone-500 flex items-center gap-1">
+                  <Users className="w-3 h-3 text-stone-400" />
                   {job.applicant_count}
                 </span>
               )}
 
               {job.posted_date && (
-                <span className="text-xs text-slate-500 flex items-center gap-1">
-                  <Clock className="w-3 h-3 text-slate-500" />
+                <span className="text-xs text-stone-500 flex items-center gap-1">
+                  <Clock className="w-3.5 h-3.5 text-stone-400" />
                   {job.posted_date}
                 </span>
               )}
             </div>
             
-            <h2 className="text-xl font-bold text-white tracking-tight">{job.title}</h2>
+            <h2 className="text-xl font-bold text-stone-900 tracking-tight">{job.title}</h2>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -140,7 +135,7 @@ export default function JobDetailModal({
                 href={job.url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center space-x-1.5 text-xs font-medium text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                className="flex items-center space-x-1.5 text-xs font-medium text-stone-700 hover:text-stone-900 bg-white hover:bg-stone-50 px-3 py-1.5 rounded-lg border border-stone-200 transition-colors shadow-xs"
               >
                 <span>Original Posting</span>
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -149,7 +144,7 @@ export default function JobDetailModal({
             {onDeleteJob && (
               <button
                 onClick={() => onDeleteJob(job.id)}
-                className="flex items-center space-x-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/30 transition-colors"
+                className="flex items-center space-x-1.5 text-xs font-medium text-rose-700 hover:text-rose-800 bg-rose-50 hover:bg-rose-100 px-3 py-1.5 rounded-lg border border-rose-200 transition-colors"
                 title="Delete this job from CLIFF"
               >
                 <Trash2 className="w-3.5 h-3.5" />
@@ -158,7 +153,7 @@ export default function JobDetailModal({
             )}
             <button
               onClick={onClose}
-              className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+              className="p-1.5 text-stone-400 hover:text-stone-700 rounded-lg hover:bg-stone-100 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -166,16 +161,16 @@ export default function JobDetailModal({
         </div>
 
         {/* Modal Body: Two Columns */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-slate-800">
+        <div className="grid grid-cols-1 lg:grid-cols-12 flex-1 overflow-y-auto divide-y lg:divide-y-0 lg:divide-x divide-stone-200">
           
           {/* Left Column: Intelligence, Match & Skills (5 cols) */}
-          <div className="lg:col-span-5 p-6 space-y-5 overflow-y-auto bg-slate-950/20">
+          <div className="lg:col-span-5 p-6 space-y-5 overflow-y-auto bg-[#FAF8F5]/50">
             
             {/* Hiring Team / Recruiter Card */}
             {job.hiring_manager?.name && (
-              <div className="bg-gradient-to-r from-teal-950/50 to-slate-900 border border-teal-500/40 rounded-xl p-3.5 space-y-2 shadow-sm">
+              <div className="bg-white border border-[#F2D7CB] rounded-xl p-3.5 space-y-2 shadow-xs">
                 <div className="flex items-center justify-between">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400 flex items-center gap-1.5">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-[#B34B22] flex items-center gap-1.5">
                     <User className="w-3.5 h-3.5" />
                     Hiring Team & Recruiter
                   </span>
@@ -184,7 +179,7 @@ export default function JobDetailModal({
                       href={job.hiring_manager.profile_url}
                       target="_blank"
                       rel="noreferrer"
-                      className="text-[11px] text-teal-300 hover:text-white flex items-center gap-1 font-medium underline"
+                      className="text-[11px] text-[#B34B22] hover:underline flex items-center gap-1 font-medium"
                     >
                       <span>LinkedIn Profile</span>
                       <ExternalLink className="w-3 h-3" />
@@ -192,50 +187,50 @@ export default function JobDetailModal({
                   )}
                 </div>
                 <div>
-                  <div className="text-sm font-bold text-white">{job.hiring_manager.name}</div>
-                  <div className="text-xs text-slate-400 mt-0.5">{job.hiring_manager.title || "Talent Acquisition / Recruiter"}</div>
+                  <div className="text-sm font-bold text-stone-900">{job.hiring_manager.name}</div>
+                  <div className="text-xs text-stone-500 mt-0.5">{job.hiring_manager.title || "Talent Acquisition / Recruiter"}</div>
                 </div>
               </div>
             )}
 
             {/* Match Score Card */}
-            <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4 flex items-center justify-between">
+            <div className="bg-white border border-stone-200 rounded-xl p-4 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-xs text-slate-400 font-medium">Computed AI Match</span>
+                <span className="text-xs text-stone-500 font-medium">Computed AI Match</span>
                 <div className="flex items-baseline space-x-2 mt-0.5">
                   <span className={`text-3xl font-extrabold ${getScoreColor(job.match_score)}`}>
                     {job.match_score}%
                   </span>
-                  <span className="text-xs text-slate-400">alignment</span>
+                  <span className="text-xs text-stone-400">alignment</span>
                 </div>
               </div>
               <div className="text-right text-xs space-y-1">
-                <div className="text-slate-300">
-                  Required Level: <strong className="text-teal-400 font-semibold">{intel.experience_level_required || job.seniority_level || "Mid-Senior"}</strong>
+                <div className="text-stone-600">
+                  Required Level: <strong className="text-stone-900 font-semibold">{intel.experience_level_required || job.seniority_level || "Mid-Senior"}</strong>
                 </div>
                 {job.salary_range && (
-                  <div className="text-emerald-400 font-medium">{job.salary_range}</div>
+                  <div className="text-[#2C6E49] font-medium">{job.salary_range}</div>
                 )}
                 {job.company_size && (
-                  <div className="text-slate-400 text-[11px]">Size: {job.company_size}</div>
+                  <div className="text-stone-500 text-[11px]">Size: {job.company_size}</div>
                 )}
               </div>
             </div>
 
             {/* Quick Status Bar */}
             <div>
-              <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+              <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider block mb-2">
                 Application Status
               </label>
-              <div className="grid grid-cols-5 gap-1.5 bg-slate-950/80 p-1.5 rounded-xl border border-slate-800">
+              <div className="grid grid-cols-5 gap-1.5 bg-stone-100 p-1.5 rounded-xl border border-stone-200">
                 {["Saved", "Applied", "Interviewing", "Offer", "Rejected"].map((st) => (
                   <button
                     key={st}
                     onClick={() => onUpdateStatus(job.id, st)}
                     className={`text-[11px] font-medium py-1.5 rounded-lg transition-all ${
                       job.status === st
-                        ? "bg-teal-500 text-slate-950 font-bold shadow-sm"
-                        : "text-slate-400 hover:text-slate-200 hover:bg-slate-800/60"
+                        ? "bg-stone-900 text-white font-bold shadow-xs"
+                        : "text-stone-600 hover:text-stone-900 hover:bg-white"
                     }`}
                   >
                     {st === "Interviewing" ? "Interview" : st}
@@ -246,27 +241,27 @@ export default function JobDetailModal({
 
             {/* Side-by-Side Skill Breakdown */}
             <div className="space-y-4">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center justify-between">
                 <span>Skill Alignment Breakdown</span>
-                <span className="text-[10px] text-slate-500 lowercase">
+                <span className="text-[10px] text-stone-400 lowercase">
                   {matchedSkills.length} matched / {missingSkills.length} missing
                 </span>
               </h3>
 
               {/* Matched Skills */}
-              <div className="bg-emerald-950/20 border border-emerald-500/20 rounded-xl p-3.5">
-                <div className="flex items-center space-x-1.5 text-xs font-semibold text-emerald-400 mb-2">
+              <div className="bg-[#EFF6F1] border border-[#D4E8DC] rounded-xl p-3.5">
+                <div className="flex items-center space-x-1.5 text-xs font-semibold text-[#2C6E49] mb-2">
                   <CheckCircle className="w-3.5 h-3.5" />
                   <span>Your Matched Skills ({matchedSkills.length})</span>
                 </div>
                 {matchedSkills.length === 0 ? (
-                  <p className="text-xs text-slate-500 italic">No direct keyword matches found</p>
+                  <p className="text-xs text-stone-500 italic">No direct keyword matches found</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {matchedSkills.map((skill, idx) => (
                       <span
                         key={idx}
-                        className="text-xs bg-emerald-500/10 text-emerald-300 border border-emerald-500/30 px-2 py-0.5 rounded-md font-medium"
+                        className="text-xs bg-white text-[#2C6E49] border border-[#D4E8DC] px-2 py-0.5 rounded-md font-medium"
                       >
                         {skill}
                       </span>
@@ -276,16 +271,16 @@ export default function JobDetailModal({
               </div>
 
               {/* Missing Skills */}
-              <div className="bg-amber-950/20 border border-amber-500/20 rounded-xl p-3.5">
+              <div className="bg-[#FDF4EF] border border-[#F2D7CB] rounded-xl p-3.5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-1.5 text-xs font-semibold text-amber-400">
+                  <div className="flex items-center space-x-1.5 text-xs font-semibold text-[#B34B22]">
                     <AlertTriangle className="w-3.5 h-3.5" />
                     <span>Skill Gaps ({missingSkills.length})</span>
                   </div>
                   {missingSkills.length > 0 && (
                     <button
                       onClick={() => onOpenRoadmap(job)}
-                      className="text-[10px] font-semibold text-teal-400 hover:text-teal-300 flex items-center gap-0.5"
+                      className="text-[10px] font-semibold text-[#B34B22] hover:underline flex items-center gap-0.5"
                     >
                       <GraduationCap className="w-3 h-3" />
                       <span>Bridge Gaps</span>
@@ -293,13 +288,13 @@ export default function JobDetailModal({
                   )}
                 </div>
                 {missingSkills.length === 0 ? (
-                  <p className="text-xs text-emerald-400/80 font-medium">100% skill requirements matched!</p>
+                  <p className="text-xs text-[#2C6E49] font-medium">100% skill requirements matched!</p>
                 ) : (
                   <div className="flex flex-wrap gap-1.5">
                     {missingSkills.map((skill, idx) => (
                       <span
                         key={idx}
-                        className="text-xs bg-amber-500/10 text-amber-300 border border-amber-500/30 px-2 py-0.5 rounded-md font-medium"
+                        className="text-xs bg-white text-[#B34B22] border border-[#F2D7CB] px-2 py-0.5 rounded-md font-medium"
                       >
                         {skill}
                       </span>
@@ -312,13 +307,13 @@ export default function JobDetailModal({
             {/* Extracted Core Responsibilities */}
             {responsibilities.length > 0 && (
               <div className="space-y-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-stone-500">
                   Key Extracted Responsibilities
                 </h4>
-                <ul className="space-y-1.5 text-xs text-slate-300">
+                <ul className="space-y-1.5 text-xs text-stone-700">
                   {responsibilities.map((resp, idx) => (
                     <li key={idx} className="flex items-start space-x-2">
-                      <span className="text-teal-400 font-bold">•</span>
+                      <span className="text-[#C25E38] font-bold">•</span>
                       <span>{resp}</span>
                     </li>
                   ))}
@@ -330,9 +325,9 @@ export default function JobDetailModal({
             <div className="pt-2">
               <button
                 onClick={() => onOpenStudio(job)}
-                className="w-full flex items-center justify-center space-x-2 bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-sm py-2.5 rounded-xl shadow-lg shadow-teal-500/10 transition-all active:scale-[0.99]"
+                className="w-full flex items-center justify-center space-x-2 bg-[#C25E38] hover:bg-[#A84F2B] text-white font-bold text-sm py-2.5 rounded-xl shadow-sm transition-all active:scale-[0.99]"
               >
-                <Sparkles className="w-4 h-4 fill-slate-950" />
+                <Sparkles className="w-4 h-4 fill-white" />
                 <span>Tailor Resume & Generate Cover Letter</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
@@ -341,19 +336,19 @@ export default function JobDetailModal({
           </div>
 
           {/* Right Column: Original Job Description & Notes (7 cols) */}
-          <div className="lg:col-span-7 p-6 space-y-6 overflow-y-auto">
+          <div className="lg:col-span-7 p-6 space-y-6 overflow-y-auto bg-white">
             
             {/* Notes Section */}
-            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-2">
+            <div className="bg-[#FAF8F5] border border-stone-200 rounded-xl p-3.5 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                  <FileText className="w-3.5 h-3.5 text-teal-400" />
+                <span className="text-xs font-semibold text-stone-800 flex items-center gap-1.5">
+                  <FileText className="w-3.5 h-3.5 text-[#C25E38]" />
                   Personal Application Notes
                 </span>
                 <button
                   onClick={handleSaveNotes}
                   disabled={isSavingNotes}
-                  className="text-[11px] bg-slate-800 hover:bg-slate-700 text-teal-400 px-2.5 py-1 rounded font-medium transition-colors"
+                  className="text-[11px] bg-stone-900 hover:bg-stone-800 text-white px-2.5 py-1 rounded font-medium transition-colors"
                 >
                   {isSavingNotes ? "Saving..." : "Save Note"}
                 </button>
@@ -363,20 +358,20 @@ export default function JobDetailModal({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="E.g., Recruiter reached out on LinkedIn, interviewed with Jane (VP Eng), asked about vector indexing..."
                 rows={2}
-                className="w-full bg-slate-900 border border-slate-800/80 rounded-lg p-2.5 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-teal-500/60 resize-none"
+                className="w-full bg-white border border-stone-200 rounded-lg p-2.5 text-xs text-stone-900 placeholder-stone-400 focus:outline-none focus:border-[#C25E38] resize-none"
               />
             </div>
 
             {/* Original Job Description */}
             <div className="space-y-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 flex items-center justify-between">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-stone-500 flex items-center justify-between">
                 <span>Original Job Description</span>
-                <span className="text-[10px] text-slate-500">
+                <span className="text-[10px] text-stone-400">
                   {job.raw_description?.length || 0} characters
                 </span>
               </h3>
               
-              <div className="bg-slate-950/80 border border-slate-800/80 rounded-xl p-4 text-xs text-slate-300 font-mono whitespace-pre-wrap leading-relaxed max-h-[460px] overflow-y-auto">
+              <div className="bg-[#FAF8F5] border border-stone-200 rounded-xl p-4 text-xs text-stone-700 font-sans whitespace-pre-wrap leading-relaxed max-h-[460px] overflow-y-auto">
                 {job.raw_description || "No description provided."}
               </div>
             </div>

@@ -103,7 +103,7 @@ export default function App() {
     : 0;
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-teal-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#FAF8F5] text-stone-800 flex flex-col font-sans selection:bg-amber-100 selection:text-amber-900">
       
       {/* Top Navbar */}
       <Navbar
@@ -125,17 +125,17 @@ export default function App() {
           <div className="space-y-4">
             <div className="flex items-center justify-between pb-1">
               <div>
-                <h1 className="text-xl font-extrabold tracking-tight text-white">
+                <h1 className="text-xl font-bold tracking-tight text-stone-900">
                   Career Pipeline & Application Tracker
                 </h1>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-stone-500">
                   Visual Kanban board with real-time AI match scores and skills alignment.
                 </p>
               </div>
             </div>
 
             {isLoadingJobs ? (
-              <div className="h-64 flex items-center justify-center text-xs text-slate-400">
+              <div className="h-64 flex items-center justify-center text-xs text-stone-500">
                 Loading saved career opportunities...
               </div>
             ) : (
@@ -169,10 +169,10 @@ export default function App() {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-900 bg-slate-950 py-4 px-6 text-center text-xs text-slate-600">
+      <footer className="border-t border-stone-200 bg-[#FAF8F5] py-4 px-6 text-center text-xs text-stone-500">
         <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>CLIFF v1.0 • Private Local-First Career Intelligence</span>
-          <span className="text-[11px] text-slate-500">FastAPI • React • Manifest V3 Extension</span>
+          <span className="font-medium text-stone-600">CLIFF • Private Local-First Career Intelligence</span>
+          <span className="text-[11px] text-stone-400">FastAPI • React • Manifest V3 Extension</span>
         </div>
       </footer>
 

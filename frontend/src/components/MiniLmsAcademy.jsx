@@ -165,22 +165,22 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
       const trimmed = line.trim();
       if (trimmed.startsWith("# ")) {
         return (
-          <h2 key={idx} className="text-lg font-bold text-teal-300 mt-6 mb-3 pb-1 border-b border-slate-800">
+          <h2 key={idx} className="text-base font-bold text-stone-900 mt-6 mb-3 pb-1 border-b border-stone-200">
             {trimmed.replace("# ", "")}
           </h2>
         );
       }
       if (trimmed.startsWith("## ")) {
         return (
-          <h3 key={idx} className="text-sm font-bold text-teal-400 mt-5 mb-2.5 flex items-center gap-2">
-            <span className="w-1.5 h-3.5 bg-teal-500 rounded-sm"></span>
+          <h3 key={idx} className="text-sm font-bold text-[#C25E38] mt-5 mb-2.5 flex items-center gap-2">
+            <span className="w-1.5 h-3.5 bg-[#C25E38] rounded-sm"></span>
             {trimmed.replace("## ", "")}
           </h3>
         );
       }
       if (trimmed.startsWith("### ")) {
         return (
-          <h4 key={idx} className="text-xs font-bold text-slate-200 mt-4 mb-2">
+          <h4 key={idx} className="text-xs font-bold text-stone-900 mt-4 mb-2">
             {trimmed.replace("### ", "")}
           </h4>
         );
@@ -188,16 +188,16 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
       if (trimmed.startsWith("- ") || trimmed.startsWith("* ")) {
         const bulletText = trimmed.substring(2);
         return (
-          <div key={idx} className="flex items-start space-x-2 text-xs text-slate-300 my-1.5 pl-2">
-            <span className="text-teal-400 font-bold shrink-0">•</span>
+          <div key={idx} className="flex items-start space-x-2 text-xs text-stone-700 my-1.5 pl-2">
+            <span className="text-[#C25E38] font-bold shrink-0">•</span>
             <span>{formatBold(bulletText)}</span>
           </div>
         );
       }
       if (/^\d+\.\s/.test(trimmed)) {
         return (
-          <div key={idx} className="flex items-start space-x-2 text-xs text-slate-300 my-1.5 pl-2">
-            <span className="text-teal-400 font-semibold shrink-0">{trimmed.split(". ")[0]}.</span>
+          <div key={idx} className="flex items-start space-x-2 text-xs text-stone-700 my-1.5 pl-2">
+            <span className="text-[#C25E38] font-semibold shrink-0">{trimmed.split(". ")[0]}.</span>
             <span>{formatBold(trimmed.substring(trimmed.indexOf(". ") + 2))}</span>
           </div>
         );
@@ -206,7 +206,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
         return <div key={idx} className="h-2" />;
       }
       return (
-        <p key={idx} className="text-xs text-slate-300 leading-relaxed my-2">
+        <p key={idx} className="text-xs text-stone-700 leading-relaxed my-2">
           {formatBold(trimmed)}
         </p>
       );
@@ -217,7 +217,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
     const parts = str.split(/(\*\*.*?\*\*)/g);
     return parts.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
-        return <strong key={i} className="text-white font-semibold">{part.slice(2, -2)}</strong>;
+        return <strong key={i} className="text-stone-900 font-semibold">{part.slice(2, -2)}</strong>;
       }
       return part;
     });
@@ -229,24 +229,24 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
   return (
     <div className="space-y-6">
       {/* Academy Track Header */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-900/90 to-teal-950/40 border border-slate-800 rounded-2xl p-5 space-y-4">
+      <div className="bg-white border border-stone-200 rounded-2xl p-5 space-y-4 shadow-xs">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-teal-500/10 border border-teal-500/30 flex items-center justify-center shrink-0">
-              <GraduationCap className="w-5 h-5 text-teal-400" />
+            <div className="w-10 h-10 rounded-xl bg-[#FDF4EF] border border-[#F2D7C9] flex items-center justify-center shrink-0">
+              <GraduationCap className="w-5 h-5 text-[#C25E38]" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h3 className="text-sm font-bold text-white">CLIFF Academy: Skill Bridging Track</h3>
-                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/30">
+                <h3 className="text-sm font-bold text-stone-900">CLIFF Academy: Skill Bridging Track</h3>
+                <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-[#FDF4EF] text-[#C25E38] border border-[#F2D7C9]">
                   Mini-LMS
                 </span>
               </div>
-              <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-                <Building2 className="w-3 h-3 text-slate-500" />
-                Targeting: <strong className="text-slate-200">{job.company}</strong>
-                {job.company_industry && <span className="text-slate-500">• {job.company_industry}</span>}
-                {job.company_size && <span className="text-slate-500">• {job.company_size}</span>}
+              <p className="text-xs text-stone-500 mt-0.5 flex items-center gap-1.5">
+                <Building2 className="w-3 h-3 text-stone-400" />
+                Targeting: <strong className="text-stone-800">{job.company}</strong>
+                {job.company_industry && <span className="text-stone-400">• {job.company_industry}</span>}
+                {job.company_size && <span className="text-stone-400">• {job.company_size}</span>}
               </p>
             </div>
           </div>
@@ -254,10 +254,10 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
           <div className="flex items-center space-x-3">
             {modules.length > 0 && (
               <div className="text-right">
-                <div className="text-xs font-bold text-white">
+                <div className="text-xs font-bold text-stone-900">
                   {masteredCount} of {modules.length} Gaps Mastered
                 </div>
-                <div className="text-[11px] text-teal-400 font-medium">
+                <div className="text-[11px] text-[#2C6E49] font-medium">
                   {progressPercent}% Complete
                 </div>
               </div>
@@ -266,7 +266,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
             <button
               onClick={handleGenerateTrack}
               disabled={isGenerating}
-              className="bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-xs px-4 py-2 rounded-xl shadow-md transition-all active:scale-95 flex items-center space-x-1.5 shrink-0"
+              className="bg-[#C25E38] hover:bg-[#B34B22] text-white font-bold text-xs px-4 py-2 rounded-xl shadow-xs transition-all active:scale-95 flex items-center space-x-1.5 shrink-0"
             >
               {isGenerating ? (
                 <>
@@ -275,7 +275,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                 </>
               ) : (
                 <>
-                  <Sparkles className="w-3.5 h-3.5 fill-slate-950" />
+                  <Sparkles className="w-3.5 h-3.5 fill-white" />
                   <span>{modules.length > 0 ? "Re-Generate Track" : "Generate Bridging Track"}</span>
                 </>
               )}
@@ -285,9 +285,9 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
         {/* Progress Bar */}
         {modules.length > 0 && (
-          <div className="w-full bg-slate-950/80 rounded-full h-2 border border-slate-800 overflow-hidden">
+          <div className="w-full bg-stone-200/80 rounded-full h-2 border border-stone-200 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-teal-500 to-emerald-400 h-2 rounded-full transition-all duration-500"
+              className="bg-[#2C6E49] h-2 rounded-full transition-all duration-500"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
@@ -296,9 +296,9 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
       {/* Graduation Success Toast */}
       {graduationSuccess && (
-        <div className="bg-emerald-950/70 border border-emerald-500/40 text-emerald-200 text-xs px-4 py-3 rounded-xl flex items-center justify-between shadow-lg animate-in fade-in">
+        <div className="bg-[#F0F5F2] border border-[#C3D9CB] text-[#2C6E49] text-xs px-4 py-3 rounded-xl flex items-center justify-between shadow-xs animate-in fade-in">
           <div className="flex items-center space-x-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+            <CheckCircle2 className="w-4 h-4 text-[#2C6E49] shrink-0" />
             <span>{graduationSuccess}</span>
           </div>
         </div>
@@ -306,17 +306,17 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
       {/* Empty State */}
       {!isLoading && !isGenerating && modules.length === 0 && (
-        <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
-          <Award className="w-10 h-10 text-teal-400 mx-auto" />
-          <h3 className="text-base font-bold text-white">Context-Aware Skill Bridging Modules</h3>
-          <p className="text-xs text-slate-400 leading-relaxed">
+        <div className="bg-[#FAF8F5] border border-dashed border-stone-300 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
+          <Award className="w-10 h-10 text-[#C25E38] mx-auto" />
+          <h3 className="text-base font-bold text-stone-900">Context-Aware Skill Bridging Modules</h3>
+          <p className="text-xs text-stone-600 leading-relaxed">
             CLIFF Academy analyzes {job.company}'s scale, industry sector, and seniority requirements to craft theoretical reading briefings and scenario-based judgment quizzes. No toy projects—pure architectural mastery.
           </p>
           <button
             onClick={handleGenerateTrack}
-            className="bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all active:scale-95 inline-flex items-center space-x-2"
+            className="bg-[#C25E38] hover:bg-[#B34B22] text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs transition-all active:scale-95 inline-flex items-center space-x-2"
           >
-            <Sparkles className="w-4 h-4 fill-slate-950" />
+            <Sparkles className="w-4 h-4 fill-white" />
             <span>Build Job Learning Track</span>
           </button>
         </div>
@@ -324,10 +324,10 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
       {/* Loading state */}
       {(isLoading || isGenerating) && modules.length === 0 && (
-        <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center max-w-md mx-auto space-y-3">
-          <RefreshCw className="w-8 h-8 text-teal-400 mx-auto animate-spin" />
-          <h4 className="text-sm font-semibold text-slate-200">Synthesizing Job-Anchored LMS Modules...</h4>
-          <p className="text-xs text-slate-500">
+        <div className="bg-white border border-stone-200 rounded-2xl p-12 text-center max-w-md mx-auto space-y-3 shadow-xs">
+          <RefreshCw className="w-8 h-8 text-[#C25E38] mx-auto animate-spin" />
+          <h4 className="text-sm font-semibold text-stone-900">Synthesizing Job-Anchored LMS Modules...</h4>
+          <p className="text-xs text-stone-500">
             Analyzing {job.company} domain, scale ({job.company_size || "enterprise"}), and {job.seniority_level || "senior"} requirements
           </p>
         </div>
@@ -339,8 +339,8 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
           
           {/* Module Selector Sidebar (4 cols) */}
           <div className="lg:col-span-4 space-y-3">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 px-1 flex items-center gap-1.5">
-              <Layers className="w-3.5 h-3.5 text-teal-400" />
+            <span className="text-[11px] font-bold uppercase tracking-wider text-stone-500 px-1 flex items-center gap-1.5">
+              <Layers className="w-3.5 h-3.5 text-[#C25E38]" />
               Identified Skill Gap Modules ({modules.length})
             </span>
 
@@ -360,37 +360,37 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                     }}
                     className={`w-full text-left p-3.5 rounded-xl border transition-all ${
                       isSelected
-                        ? "bg-slate-800/90 border-teal-500/50 shadow-md ring-1 ring-teal-500/30"
-                        : "bg-slate-900/60 border-slate-800 hover:border-slate-700 hover:bg-slate-800/40"
+                        ? "bg-white border-[#C25E38] shadow-xs ring-1 ring-[#C25E38]/20"
+                        : "bg-[#FAF8F5] border-stone-200 hover:border-stone-300 hover:bg-white"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2 mb-1.5">
-                      <span className="text-xs font-bold text-white truncate">
+                      <span className="text-xs font-bold text-stone-900 truncate">
                         {m.skill_gap}
                       </span>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-slate-950 text-slate-300 border border-slate-800 shrink-0">
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-stone-100 text-stone-700 border border-stone-200 shrink-0">
                         {m.difficulty_level}
                       </span>
                     </div>
 
-                    <div className="flex items-center justify-between text-[11px] text-slate-400">
+                    <div className="flex items-center justify-between text-[11px] text-stone-500">
                       <div className="flex items-center space-x-1.5">
                         {isMastered ? (
-                          <span className="flex items-center gap-1 text-emerald-400 font-semibold">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                          <span className="flex items-center gap-1 text-[#2C6E49] font-semibold">
+                            <CheckCircle2 className="w-3 h-3 text-[#2C6E49]" />
                             Mastered {m.best_score ? `(${m.best_score}%)` : ""}
                           </span>
                         ) : isInProgress ? (
-                          <span className="text-amber-400 font-semibold">
+                          <span className="text-amber-700 font-semibold">
                             In Progress ({m.best_score || 0}%)
                           </span>
                         ) : (
-                          <span className="text-slate-500">Not Started</span>
+                          <span className="text-stone-400">Not Started</span>
                         )}
                       </div>
 
                       {m.graduated_to_profile && (
-                        <span className="text-[10px] text-teal-400 font-medium">
+                        <span className="text-[10px] text-[#2C6E49] font-medium">
                           🎓 In Profile
                         </span>
                       )}
@@ -402,21 +402,21 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
           </div>
 
           {/* Active Module Detail & Workspace (8 cols) */}
-          <div className="lg:col-span-8 bg-slate-900/80 border border-slate-800 rounded-2xl p-6 space-y-6">
+          <div className="lg:col-span-8 bg-white border border-stone-200 rounded-2xl p-6 space-y-6 shadow-xs">
             
             {/* Header with Title and Mode Switcher */}
-            <div className="border-b border-slate-800 pb-4 space-y-3">
+            <div className="border-b border-stone-200 pb-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold uppercase tracking-wider text-teal-400">
+                    <span className="text-xs font-bold uppercase tracking-wider text-[#C25E38]">
                       {activeModule.skill_gap}
                     </span>
-                    <span className="text-[10px] text-slate-400 bg-slate-950 px-2 py-0.5 rounded border border-slate-800">
+                    <span className="text-[10px] text-stone-600 bg-stone-100 px-2 py-0.5 rounded border border-stone-200">
                       {activeModule.difficulty_level} Level
                     </span>
                   </div>
-                  <h3 className="text-base font-bold text-white mt-1">
+                  <h3 className="text-base font-bold text-stone-900 mt-1">
                     {activeModule.module_title}
                   </h3>
                 </div>
@@ -424,17 +424,17 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                 {/* Status indicator */}
                 <div>
                   {activeModule.status === "MASTERED" ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-[#F0F5F2] text-[#2C6E49] border border-[#C3D9CB]">
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       Mastered ({activeModule.best_score}%)
                     </span>
                   ) : activeModule.status === "IN_PROGRESS" ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/30">
+                    <span className="inline-flex items-center gap-1.5 text-xs font-bold px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-200">
                       <TrendingUp className="w-3.5 h-3.5" />
                       In Progress ({activeModule.best_score || 0}%)
                     </span>
                   ) : (
-                    <span className="text-xs text-slate-400 bg-slate-950 px-3 py-1 rounded-full border border-slate-800">
+                    <span className="text-xs text-stone-500 bg-stone-100 px-3 py-1 rounded-full border border-stone-200">
                       Not Started
                     </span>
                   )}
@@ -443,10 +443,10 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
               {/* Company context callout */}
               {activeModule.company_context_summary && (
-                <div className="bg-teal-950/40 border border-teal-500/30 rounded-xl p-3 flex items-start space-x-2.5">
-                  <Lightbulb className="w-4 h-4 text-teal-400 shrink-0 mt-0.5" />
-                  <p className="text-xs text-teal-200 leading-relaxed">
-                    <strong>Why this matters at {job.company}:</strong> {activeModule.company_context_summary}
+                <div className="bg-[#FAF8F5] border border-stone-200 rounded-xl p-3 flex items-start space-x-2.5">
+                  <Lightbulb className="w-4 h-4 text-[#C25E38] shrink-0 mt-0.5" />
+                  <p className="text-xs text-stone-700 leading-relaxed">
+                    <strong className="text-stone-900">Why this matters at {job.company}:</strong> {activeModule.company_context_summary}
                   </p>
                 </div>
               )}
@@ -457,8 +457,8 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                   onClick={() => setActiveTab("reading")}
                   className={`text-xs px-4 py-2 rounded-xl font-medium transition-all flex items-center space-x-1.5 ${
                     activeTab === "reading"
-                      ? "bg-teal-500 text-slate-950 font-bold shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800"
+                      ? "bg-[#C25E38] text-white font-bold shadow-xs"
+                      : "text-stone-600 hover:text-stone-900 bg-stone-100 border border-stone-200"
                   }`}
                 >
                   <BookOpen className="w-3.5 h-3.5" />
@@ -469,8 +469,8 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                   onClick={() => setActiveTab("quiz")}
                   className={`text-xs px-4 py-2 rounded-xl font-medium transition-all flex items-center space-x-1.5 ${
                     activeTab === "quiz"
-                      ? "bg-teal-500 text-slate-950 font-bold shadow-sm"
-                      : "text-slate-400 hover:text-slate-200 bg-slate-950 border border-slate-800"
+                      ? "bg-[#C25E38] text-white font-bold shadow-xs"
+                      : "text-stone-600 hover:text-stone-900 bg-stone-100 border border-stone-200"
                   }`}
                 >
                   <HelpCircle className="w-3.5 h-3.5" />
@@ -482,18 +482,18 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
             {/* TAB 1: Theoretical Reading */}
             {activeTab === "reading" && (
               <div className="space-y-6">
-                <div className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-5 text-slate-200">
+                <div className="bg-[#FAF8F5] border border-stone-200 rounded-xl p-5 text-stone-800">
                   {renderMarkdown(activeModule.reading_markdown)}
                 </div>
 
                 {/* Footer action to jump to quiz */}
                 <div className="flex items-center justify-between pt-2">
-                  <span className="text-xs text-slate-400">
+                  <span className="text-xs text-stone-500">
                     Finished reading? Test your architectural judgment.
                   </span>
                   <button
                     onClick={() => setActiveTab("quiz")}
-                    className="bg-slate-800 hover:bg-slate-700 text-teal-300 hover:text-white text-xs font-semibold px-4 py-2 rounded-xl border border-teal-500/30 flex items-center space-x-1.5 transition-all"
+                    className="bg-stone-100 hover:bg-stone-200 text-[#C25E38] hover:text-[#B34B22] text-xs font-semibold px-4 py-2 rounded-xl border border-stone-200 flex items-center space-x-1.5 transition-all"
                   >
                     <span>Proceed to Scenario Quiz</span>
                     <ArrowRight className="w-3.5 h-3.5" />
@@ -510,18 +510,18 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                   <div
                     className={`p-4 rounded-xl border flex flex-wrap items-center justify-between gap-3 ${
                       quizResult.passed
-                        ? "bg-emerald-950/60 border-emerald-500/40 text-emerald-200"
-                        : "bg-rose-950/60 border-rose-500/40 text-rose-200"
+                        ? "bg-[#F0F5F2] border-[#C3D9CB] text-[#2C6E49]"
+                        : "bg-rose-50 border-rose-200 text-rose-800"
                     }`}
                   >
                     <div className="flex items-center space-x-3">
                       {quizResult.passed ? (
-                        <CheckCircle2 className="w-6 h-6 text-emerald-400 shrink-0" />
+                        <CheckCircle2 className="w-6 h-6 text-[#2C6E49] shrink-0" />
                       ) : (
-                        <AlertTriangle className="w-6 h-6 text-rose-400 shrink-0" />
+                        <AlertTriangle className="w-6 h-6 text-rose-600 shrink-0" />
                       )}
                       <div>
-                        <h4 className="text-sm font-bold text-white">
+                        <h4 className="text-sm font-bold text-stone-900">
                           {quizResult.passed
                             ? `Mastery Achieved! Score: ${quizResult.score}% (Passing: 80%)`
                             : `Keep Practicing! Score: ${quizResult.score}% (Passing: 80%)`}
@@ -537,7 +537,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={handleResetQuiz}
-                        className="text-xs bg-slate-900 hover:bg-slate-800 text-slate-300 px-3 py-1.5 rounded-lg border border-slate-700 transition-colors"
+                        className="text-xs bg-white hover:bg-stone-50 text-stone-700 px-3 py-1.5 rounded-lg border border-stone-300 transition-colors"
                       >
                         Retake Quiz
                       </button>
@@ -546,7 +546,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                         <button
                           onClick={handleGraduateSkill}
                           disabled={isGraduating}
-                          className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 px-4 py-1.5 rounded-lg shadow transition-all active:scale-95 flex items-center space-x-1"
+                          className="text-xs font-bold bg-[#2C6E49] hover:bg-[#23583a] text-white px-4 py-1.5 rounded-lg shadow-xs transition-all active:scale-95 flex items-center space-x-1"
                         >
                           <Award className="w-3.5 h-3.5" />
                           <span>{isGraduating ? "Graduating..." : "Graduate to Profile"}</span>
@@ -558,14 +558,14 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
                 {/* Graduate button if already mastered */}
                 {activeModule.status === "MASTERED" && !quizResult && !activeModule.graduated_to_profile && (
-                  <div className="bg-emerald-950/40 border border-emerald-500/30 p-3.5 rounded-xl flex items-center justify-between">
-                    <span className="text-xs text-emerald-300">
+                  <div className="bg-[#F0F5F2] border border-[#C3D9CB] p-3.5 rounded-xl flex items-center justify-between">
+                    <span className="text-xs text-[#2C6E49]">
                       🏆 You have already mastered this module with <strong>{activeModule.best_score}%</strong>.
                     </span>
                     <button
                       onClick={handleGraduateSkill}
                       disabled={isGraduating}
-                      className="text-xs font-bold bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 px-3.5 py-1.5 rounded-lg shadow hover:opacity-90 transition-all flex items-center space-x-1"
+                      className="text-xs font-bold bg-[#2C6E49] hover:bg-[#23583a] text-white px-3.5 py-1.5 rounded-lg shadow-xs hover:opacity-90 transition-all flex items-center space-x-1"
                     >
                       <Award className="w-3.5 h-3.5" />
                       <span>{isGraduating ? "Graduating..." : "Graduate to Master Profile"}</span>
@@ -574,8 +574,8 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                 )}
 
                 {activeModule.graduated_to_profile && (
-                  <div className="bg-teal-950/40 border border-teal-500/30 p-3 rounded-xl text-xs text-teal-300 flex items-center space-x-2">
-                    <CheckCircle2 className="w-4 h-4 text-teal-400" />
+                  <div className="bg-[#F0F5F2] border border-[#C3D9CB] p-3 rounded-xl text-xs text-[#2C6E49] flex items-center space-x-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#2C6E49]" />
                     <span>This skill has been added to your Master Profile, and jobs are dynamically re-scored.</span>
                   </div>
                 )}
@@ -590,17 +590,17 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                     return (
                       <div
                         key={q.id || qIdx}
-                        className="bg-slate-950/70 border border-slate-800/80 rounded-xl p-5 space-y-4"
+                        className="bg-[#FAF8F5] border border-stone-200 rounded-xl p-5 space-y-4"
                       >
                         {/* Question scenario */}
                         <div className="space-y-1.5">
-                          <span className="text-[11px] font-bold uppercase tracking-wider text-teal-400">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-[#C25E38]">
                             Scenario {qIdx + 1}
                           </span>
-                          <p className="text-xs text-slate-300 leading-relaxed bg-slate-900/60 p-3 rounded-lg border border-slate-800">
+                          <p className="text-xs text-stone-700 leading-relaxed bg-white p-3 rounded-lg border border-stone-200">
                             {q.scenario}
                           </p>
-                          <h4 className="text-xs font-bold text-white pt-1">
+                          <h4 className="text-xs font-bold text-stone-900 pt-1">
                             {q.question}
                           </h4>
                         </div>
@@ -609,18 +609,18 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                         <div className="space-y-2">
                           {q.options?.map((opt, optIdx) => {
                             const isSelected = selectedAnswers[qIdx] === optIdx;
-                            let optionStyle = "bg-slate-900/80 border-slate-800 hover:border-slate-700 text-slate-300";
+                            let optionStyle = "bg-white border-stone-200 hover:border-stone-300 text-stone-700";
 
                             if (quizResult && resultItem) {
                               if (optIdx === q.correct_index) {
-                                optionStyle = "bg-emerald-950/60 border-emerald-500 text-emerald-200 font-semibold";
+                                optionStyle = "bg-[#F0F5F2] border-[#2C6E49] text-[#2C6E49] font-semibold";
                               } else if (isSelected && !resultItem.is_correct) {
-                                optionStyle = "bg-rose-950/60 border-rose-500 text-rose-300";
+                                optionStyle = "bg-rose-50 border-rose-300 text-rose-800";
                               } else {
-                                optionStyle = "bg-slate-900/40 border-slate-800/50 text-slate-500";
+                                optionStyle = "bg-stone-50 border-stone-200/60 text-stone-400";
                               }
                             } else if (isSelected) {
-                              optionStyle = "bg-teal-500/10 border-teal-500 text-teal-200 font-semibold ring-1 ring-teal-500/50";
+                              optionStyle = "bg-[#FDF4EF] border-[#C25E38] text-stone-900 font-semibold ring-1 ring-[#C25E38]/30";
                             }
 
                             return (
@@ -631,15 +631,15 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                                 onClick={() => handleSelectOption(qIdx, optIdx)}
                                 className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-start space-x-2.5 ${optionStyle}`}
                               >
-                                <span className="font-mono font-bold text-[11px] shrink-0 mt-0.5 text-slate-400">
+                                <span className="font-mono font-bold text-[11px] shrink-0 mt-0.5 text-stone-400">
                                   {String.fromCharCode(65 + optIdx)}.
                                 </span>
                                 <span className="flex-1">{opt}</span>
                                 {quizResult && optIdx === q.correct_index && (
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                  <CheckCircle2 className="w-4 h-4 text-[#2C6E49] shrink-0" />
                                 )}
                                 {quizResult && isSelected && !resultItem.is_correct && (
-                                  <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                                  <XCircle className="w-4 h-4 text-rose-600 shrink-0" />
                                 )}
                               </button>
                             );
@@ -648,12 +648,12 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
 
                         {/* Explanation breakdown after submit */}
                         {quizResult && resultItem && (
-                          <div className="bg-slate-900/90 border border-slate-800 rounded-xl p-3.5 space-y-1">
-                            <span className="text-[11px] font-bold text-teal-400 flex items-center gap-1">
-                              <Lightbulb className="w-3 h-3" />
+                          <div className="bg-white border border-stone-200 rounded-xl p-3.5 space-y-1">
+                            <span className="text-[11px] font-bold text-[#2C6E49] flex items-center gap-1">
+                              <Lightbulb className="w-3 h-3 text-[#2C6E49]" />
                               Theoretical Rationale
                             </span>
-                            <p className="text-xs text-slate-300 leading-relaxed">
+                            <p className="text-xs text-stone-700 leading-relaxed">
                               {resultItem.explanation}
                             </p>
                           </div>
@@ -666,7 +666,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                 {/* Submit Quiz Action Bar */}
                 {!quizResult && (
                   <div className="flex items-center justify-between pt-2">
-                    <span className="text-xs text-slate-500">
+                    <span className="text-xs text-stone-500">
                       Answer all {activeModule.quiz_questions?.length || 3} questions. 80%+ required to Master.
                     </span>
                     <button
@@ -676,7 +676,7 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
                         Object.keys(selectedAnswers).length <
                           (activeModule.quiz_questions?.length || 3)
                       }
-                      className="bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 disabled:opacity-50 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all active:scale-95 flex items-center space-x-1.5"
+                      className="bg-[#C25E38] hover:bg-[#B34B22] disabled:opacity-50 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-xs transition-all active:scale-95 flex items-center space-x-1.5"
                     >
                       {isSubmittingQuiz ? (
                         <>
@@ -702,3 +702,4 @@ export default function MiniLmsAcademy({ job, onSkillGraduated }) {
     </div>
   );
 }
+
