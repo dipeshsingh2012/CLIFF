@@ -48,4 +48,18 @@ resource "google_project_iam_member" "cloudbuild_artifactregistry" {
   depends_on = [google_project_service.apis]
 }
 
+# 6. GitHub Actions CI/CD Deployer Service Account
+resource "google_project_iam_member" "gh_actions_deployer_editor" {
+  project = var.project_id
+  role    = "roles/editor"
+  member  = "serviceAccount:gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "gh_actions_deployer_iam" {
+  project = var.project_id
+  role    = "roles/resourcemanager.projectIamAdmin"
+  member  = "serviceAccount:gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com"
+}
+
+
 
