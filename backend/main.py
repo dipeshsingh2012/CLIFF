@@ -1147,15 +1147,20 @@ def delete_job(job_id: int, session: Session = Depends(get_session)):
     if not job:
         logger.warning(f"<-- [DELETE /api/jobs/{job_id}] Job ID={job_id} not found in database.")
         raise HTTPException(status_code=404, detail="Job not found")
-    intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
-    if intel:
+
+    # 1. Delete all associated JobIntelligence records first and flush to satisfy foreign key constraint
+    intels = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).all()
+    for intel in intels:
         logger.info(f"[DELETE /api/jobs/{job_id}] Removing associated JobIntelligence record ID={intel.id}...")
         session.delete(intel)
+    session.flush()
+
+    # 2. Delete parent Job record
     logger.info(f"[DELETE /api/jobs/{job_id}] Removing Job record ID={job.id} ('{job.title}' @ '{job.company}')...")
     session.delete(job)
     session.commit()
-    logger.info(f"<-- [DELETE /api/jobs/{job_id}] Successfully deleted Job ID={job_id}.")
-    return {"message": "Job deleted successfully"}
+    logger.info(f"<-- [DELETE /api/jobs/{job_id}] Successfully deleted Job ID={job_id} and {len(intels)} intelligence record(s).")
+    return {"message": "Job deleted successfully", "id": job_id}
 
 # 3. AI Intelligence Endpoints
 

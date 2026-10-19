@@ -336,7 +336,10 @@ export default function KanbanBoard({
 
                           {/* Delete */}
                           <button
-                            onClick={() => onDeleteJob(job.id)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onDeleteJob(job.id);
+                            }}
                             title="Delete Job"
                             className="p-1 rounded text-slate-500 hover:text-rose-400 hover:bg-slate-800 transition-colors"
                           >

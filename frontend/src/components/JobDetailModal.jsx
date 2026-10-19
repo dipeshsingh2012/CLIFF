@@ -17,7 +17,8 @@ import {
   Zap,
   User,
   Users,
-  Globe
+  Globe,
+  Trash2
 } from "lucide-react";
 
 export default function JobDetailModal({ 
@@ -25,7 +26,8 @@ export default function JobDetailModal({
   onClose, 
   onUpdateStatus, 
   onOpenStudio, 
-  onOpenRoadmap 
+  onOpenRoadmap,
+  onDeleteJob
 }) {
   if (!job) return null;
 
@@ -143,6 +145,16 @@ export default function JobDetailModal({
                 <span>Original Posting</span>
                 <ExternalLink className="w-3.5 h-3.5" />
               </a>
+            )}
+            {onDeleteJob && (
+              <button
+                onClick={() => onDeleteJob(job.id)}
+                className="flex items-center space-x-1.5 text-xs font-medium text-rose-400 hover:text-rose-300 bg-rose-500/10 hover:bg-rose-500/20 px-3 py-1.5 rounded-lg border border-rose-500/30 transition-colors"
+                title="Delete this job from CLIFF"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>Delete</span>
+              </button>
             )}
             <button
               onClick={onClose}

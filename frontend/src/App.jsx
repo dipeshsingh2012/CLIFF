@@ -183,6 +183,7 @@ export default function App() {
           onUpdateStatus={handleUpdateStatus}
           onOpenStudio={handleOpenStudio}
           onOpenRoadmap={handleOpenRoadmap}
+          onDeleteJob={handleDeleteJob}
         />
       )}
 

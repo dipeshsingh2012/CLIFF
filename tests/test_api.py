@@ -52,6 +52,31 @@ class APITestCase(unittest.TestCase):
         response = self.client.get("/api/profile/upload-status/non-existent-uuid")
         self.assertEqual(response.status_code, 404)
 
+    def test_delete_job_with_intelligence(self):
+        # 1. Create a job
+        job_payload = {
+            "title": "Temporary Job for Deletion",
+            "company": "Test Co",
+            "url": "https://www.linkedin.com/jobs/view/9999999",
+            "raw_description": "A test job to verify foreign key cascade deletion."
+        }
+        res_create = self.client.post("/api/jobs", json=job_payload)
+        self.assertEqual(res_create.status_code, 200)
+        job_id = res_create.json()["id"]
+
+        # 2. Verify Job and JobIntelligence exist
+        res_get = self.client.get(f"/api/jobs/{job_id}")
+        self.assertEqual(res_get.status_code, 200)
+
+        # 3. Delete the job
+        res_delete = self.client.delete(f"/api/jobs/{job_id}")
+        self.assertEqual(res_delete.status_code, 200)
+        self.assertEqual(res_delete.json()["message"], "Job deleted successfully")
+
+        # 4. Verify Job is gone
+        res_after = self.client.get(f"/api/jobs/{job_id}")
+        self.assertEqual(res_after.status_code, 404)
+
 if __name__ == "__main__":
     unittest.main()
 
