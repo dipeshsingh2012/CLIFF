@@ -24,12 +24,13 @@ export default function App() {
     fetchJobs();
     checkBackendHealth();
     
-    // Auto-poll backend every 3.5s so newly scraped jobs appear instantly without manual page refresh
+    // Auto-poll backend every 2 minutes (120,000ms) for newly scraped jobs
     const jobsInterval = setInterval(() => {
       fetchJobs(false);
-    }, 3500);
+    }, 120000);
 
-    const healthInterval = setInterval(checkBackendHealth, 8000);
+    const healthInterval = setInterval(checkBackendHealth, 120000);
+
 
     return () => {
       clearInterval(jobsInterval);
