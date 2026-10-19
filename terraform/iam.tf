@@ -62,5 +62,18 @@ resource "google_project_iam_member" "gh_actions_deployer_iam" {
   member  = "serviceAccount:gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com"
 }
 
+resource "google_project_iam_member" "gh_actions_deployer_pubsub" {
+  project = var.project_id
+  role    = "roles/pubsub.admin"
+  member  = "serviceAccount:gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com"
+}
+
+resource "google_project_iam_member" "gh_actions_deployer_storage" {
+  project = var.project_id
+  role    = "roles/storage.admin"
+  member  = "serviceAccount:gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com"
+}
+
+
 
 
