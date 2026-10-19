@@ -77,6 +77,26 @@ class APITestCase(unittest.TestCase):
         res_after = self.client.get(f"/api/jobs/{job_id}")
         self.assertEqual(res_after.status_code, 404)
 
+    def test_learning_roadmap_by_job_id(self):
+        # 1. Create a job
+        job_payload = {
+            "title": "Cloud Architect",
+            "company": "NextGen Cloud",
+            "url": "https://www.linkedin.com/jobs/view/8888888",
+            "raw_description": "Looking for Cloud Architect with Kubernetes, Terraform, and Go experience."
+        }
+        res_create = self.client.post("/api/jobs", json=job_payload)
+        self.assertEqual(res_create.status_code, 200)
+        job_id = res_create.json()["id"]
+
+        # 2. Call learning-roadmap with only job_id
+        res_roadmap = self.client.post("/api/ai/learning-roadmap", json={"job_id": job_id})
+        self.assertEqual(res_roadmap.status_code, 200)
+        roadmap = res_roadmap.json()
+        self.assertIn("overview", roadmap)
+        self.assertIn("key_topics", roadmap)
+        self.assertTrue(len(roadmap["key_topics"]) > 0)
+
 if __name__ == "__main__":
     unittest.main()
 

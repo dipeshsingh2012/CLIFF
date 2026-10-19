@@ -75,13 +75,12 @@ export default function StudioView({ jobs, selectedJobId, onSelectJobId, initial
   // Handle generating learning roadmap
   const handleGenerateRoadmap = async (jobTarget = selectedJob) => {
     if (!jobTarget) return;
-    const missing = jobTarget.intelligence?.missing_skills || ["System Design", "Cloud Infrastructure"];
     setIsGeneratingRoadmap(true);
     try {
-      const data = await generateLearningRoadmap(missing, jobTarget.title);
+      const data = await generateLearningRoadmap(jobTarget.id);
       setRoadmapData(data);
     } catch (err) {
-      console.error(err);
+      console.error("Roadmap generation error:", err);
     } finally {
       setIsGeneratingRoadmap(false);
     }

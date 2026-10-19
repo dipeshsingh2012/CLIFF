@@ -86,11 +86,15 @@ export async function generateCoverLetter(payload) {
   return res.json();
 }
 
-export async function generateLearningRoadmap(missingSkills, jobTitle) {
+export async function generateLearningRoadmap(jobIdOrPayload) {
+  const payload = typeof jobIdOrPayload === "object" 
+    ? jobIdOrPayload 
+    : { job_id: jobIdOrPayload };
+
   const res = await fetch(`${API_BASE}/ai/learning-roadmap`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ missing_skills: missingSkills, job_title: jobTitle }),
+    body: JSON.stringify(payload),
   });
   if (!res.ok) throw new Error("Failed to generate learning roadmap");
   return res.json();

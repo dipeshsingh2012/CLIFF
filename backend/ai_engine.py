@@ -477,26 +477,36 @@ Return a strict JSON object with:
         }
     return result
 
-def generate_learning_roadmap(missing_skills: List[str], job_title: str) -> Dict[str, Any]:
+def generate_learning_roadmap(
+    missing_skills: List[str],
+    job_title: str,
+    company: Optional[str] = "",
+    raw_description: Optional[str] = ""
+) -> Dict[str, Any]:
+    company_context = f' at "{company}"' if company else ''
+    jd_snippet = f"\nRelevant Job Description & Requirements:\n\"\"\"{raw_description[:2000]}\"\"\"\n" if raw_description else ""
+
     prompt = f"""
-Generate an actionable 14-day skill bridging roadmap for a candidate applying for "{job_title}".
-The candidate is missing these required/preferred skills:
+You are CLIFF, an expert technical mentor and career strategist.
+Generate an actionable 14-day skill bridging roadmap for a candidate applying for "{job_title}"{company_context}.
+{jd_snippet}
+The candidate needs to bridge these identified skill gaps:
 {json.dumps(missing_skills)}
 
-Return a strict JSON object with:
+Return a strict JSON object with this exact structure:
 {{
-  "overview": "Encouraging summary explaining how to bridge these gaps quickly",
+  "overview": "Encouraging, concrete summary explaining how to bridge these specific skill gaps quickly to stand out for {job_title}{company_context}",
   "key_topics": [
     {{
       "skill": "Skill name",
       "priority": "High" | "Medium",
-      "learning_goal": "What to master",
-      "recommended_resource": "Free docs, tutorial, or course title",
-      "fast_track_project": "Hands-on project to build in 48 hours to prove competence"
+      "learning_goal": "Precise concept or architectural pattern to master for this role",
+      "recommended_resource": "Authoritative free documentation, official tutorial, or key industry specification",
+      "fast_track_project": "Targeted proof-of-concept project the candidate can build in 48 hours to demonstrate production competence"
     }}
   ],
   "interview_talking_points": [
-    "How to address missing skills positively when asked in technical rounds"
+    "Concrete talking point addressing how to frame this skill during interviews and connect it to past experience"
   ]
 }}
 """
@@ -505,19 +515,19 @@ Return a strict JSON object with:
         result = _call_openai_json(prompt)
     if not result:
         key_topics = []
-        for s in (missing_skills[:4] or ["GraphQL", "Kafka"]):
+        for s in (missing_skills[:5] or ["System Design", "Cloud Infrastructure"]):
             key_topics.append({
                 "skill": s,
                 "priority": "High",
-                "learning_goal": f"Understand core principles, architecture patterns, and production trade-offs of {s}.",
+                "learning_goal": f"Understand core principles, architecture patterns, and production trade-offs of {s} for {job_title}.",
                 "recommended_resource": f"Official {s} Documentation & Quickstart Guide",
-                "fast_track_project": f"Build a lightweight microservice integrating {s} with a mock producer/consumer API."
+                "fast_track_project": f"Build a lightweight prototype integrating {s} aligned with {job_title} requirements."
             })
         result = {
             "overview": f"These {len(missing_skills)} skills are achievable to bridge rapidly by mapping your existing technical foundation to their design concepts.",
             "key_topics": key_topics,
             "interview_talking_points": [
-                "Highlight transferrable architectural skills from analogous tools you already master.",
+                f"Highlight transferrable architectural skills from analogous tools you already master when discussing {missing_skills[0] if missing_skills else 'new technologies'}.",
                 "Mention your recent hands-on prototype and express enthusiasm for ramping up immediately."
             ]
         }

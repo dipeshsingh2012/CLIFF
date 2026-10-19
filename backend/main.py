@@ -239,7 +239,8 @@ class DraftAnswerPayload(BaseModel):
     job_context: Optional[str] = ""
 
 class LearningRoadmapPayload(BaseModel):
-    missing_skills: List[str]
+    job_id: Optional[int] = None
+    missing_skills: Optional[List[str]] = None
     job_title: Optional[str] = "Software Engineer"
 
 class SignedUploadUrlRequest(BaseModel):
@@ -1248,8 +1249,38 @@ def api_draft_answer(payload: DraftAnswerPayload, session: Session = Depends(get
     )
 
 @app.post("/api/ai/learning-roadmap")
-def api_learning_roadmap(payload: LearningRoadmapPayload):
+def api_learning_roadmap(payload: LearningRoadmapPayload, session: Session = Depends(get_session)):
+    job_title = payload.job_title or "Software Engineer"
+    company = ""
+    raw_description = ""
+    missing_skills = payload.missing_skills or []
+
+    if payload.job_id:
+        job = session.get(Job, payload.job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail=f"Job with ID {payload.job_id} not found")
+        job_title = job.title or job_title
+        company = job.company or ""
+        raw_description = job.raw_description or ""
+
+        # Fetch intelligence & gaps from database if not explicitly provided
+        if not missing_skills:
+            intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
+            if intel and intel.missing_skills:
+                missing_skills = intel.missing_skills
+            elif intel and intel.extracted_hard_skills:
+                profile = session.exec(select(UserProfile)).first()
+                user_skills = profile.skills if profile else []
+                missing_skills = [s for s in intel.extracted_hard_skills if s not in user_skills]
+    elif not missing_skills:
+        raise HTTPException(status_code=400, detail="Either 'job_id' or 'missing_skills' must be provided.")
+
+    if not missing_skills:
+        missing_skills = ["System Design", "Cloud Infrastructure"]
+
     return generate_learning_roadmap(
-        missing_skills=payload.missing_skills,
-        job_title=payload.job_title or "Software Engineer"
+        missing_skills=missing_skills,
+        job_title=job_title,
+        company=company,
+        raw_description=raw_description
     )
