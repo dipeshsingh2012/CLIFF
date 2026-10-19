@@ -67,6 +67,51 @@ def get_genai_client():
 
     return None
 
+def _safe_parse_json(raw_text: str) -> Optional[dict]:
+    """
+    Resiliently parse JSON emitted by LLMs.
+    Handles markdown fences, trailing commas, and newline-separated properties missing commas.
+    """
+    if not raw_text or not raw_text.strip():
+        return None
+    text = raw_text.strip()
+
+    # 1. Strip markdown fences if present
+    if text.startswith("```"):
+        text = re.sub(r"^```(?:json)?\s*", "", text)
+        text = re.sub(r"\s*```$", "", text).strip()
+
+    # 2. Direct parse attempt
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # 3. Extract outermost JSON structure
+    match = re.search(r"(\{[\s\S]*\}|\[[\s\S]*\])", text)
+    if match:
+        candidate = match.group(1).strip()
+        try:
+            return json.loads(candidate)
+        except Exception:
+            pass
+
+        # 4. Strip trailing commas before closing braces/brackets
+        no_trailing = re.sub(r",\s*([\]}])", r"\1", candidate)
+        try:
+            return json.loads(no_trailing)
+        except Exception:
+            pass
+
+        # 5. Repair missing commas between newline-delimited properties or array elements
+        repaired = re.sub(r"([0-9]|true|false|null|\"|\]|\})\s*\n\s*(\"|\{|\[)", r"\1,\n\2", no_trailing)
+        try:
+            return json.loads(repaired)
+        except Exception:
+            pass
+
+    return None
+
 def _call_gemini_json(prompt: str, system_instruction: str = "") -> Optional[dict]:
     client = get_genai_client()
     if not client:
@@ -78,12 +123,15 @@ def _call_gemini_json(prompt: str, system_instruction: str = "") -> Optional[dic
             contents=prompt,
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
-                system_instruction=system_instruction or "You are CLIFF, an expert career intelligence and job matching AI. Return valid JSON only.",
+                system_instruction=system_instruction or "You are CLIFF, an expert career intelligence and job matching AI. Return valid, well-formed JSON only with proper commas.",
                 temperature=0.2
             )
         )
         if response.text:
-            return json.loads(response.text)
+            parsed = _safe_parse_json(response.text)
+            if parsed is not None:
+                return parsed
+            logger.warning(f"[AI Engine] Could not safely parse Gemini JSON response. Snippet: {response.text[:200]}")
     except Exception as e:
         logger.warning(f"Vertex AI Gemini call failed, falling back: {e}")
     return None
@@ -105,7 +153,9 @@ def _call_openai_json(prompt: str, system_instruction: str = "") -> Optional[dic
         )
         content = response.choices[0].message.content
         if content:
-            return json.loads(content)
+            parsed = _safe_parse_json(content)
+            if parsed is not None:
+                return parsed
     except Exception as e:
         logger.warning(f"OpenAI API call failed, falling back: {e}")
     return None
