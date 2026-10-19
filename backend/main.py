@@ -1,20 +1,28 @@
+import io
+import os
+import re
+import uuid
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from pydantic import BaseModel
+import base64
+import pypdf
+import docx
 
-from models import UserProfile, Job, JobIntelligence
+from models import UserProfile, Job, JobIntelligence, ResumeUploadTask
 from database import engine, create_db_and_tables, get_session
 from ai_engine import (
     parse_job_intelligence,
     tailor_resume,
     generate_cover_letter,
     draft_ats_answer,
-    generate_learning_roadmap
+    generate_learning_roadmap,
+    parse_resume_to_structured_profile
 )
 
 logging.basicConfig(
@@ -29,10 +37,13 @@ logger.setLevel(logging.INFO)
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     # Seed sample jobs if empty
-    with Session(engine) as session:
-        existing_jobs = session.exec(select(Job)).first()
-        if not existing_jobs:
-            seed_sample_jobs(session)
+    try:
+        with Session(engine) as session:
+            existing_jobs = session.exec(select(Job)).first()
+            if not existing_jobs:
+                seed_sample_jobs(session)
+    except Exception as e:
+        logger.warning(f"Skipping sample job seeding: {e}")
     yield
 
 app = FastAPI(
@@ -220,9 +231,28 @@ class LearningRoadmapPayload(BaseModel):
     missing_skills: List[str]
     job_title: Optional[str] = "Software Engineer"
 
+class SignedUploadUrlRequest(BaseModel):
+    filename: str
+    content_type: Optional[str] = "application/pdf"
+
+class ProcessUploadedResumePayload(BaseModel):
+    object_name: str
+    bucket_name: Optional[str] = None
+    task_id: Optional[str] = None
+
+class PubSubMessage(BaseModel):
+    data: Optional[str] = None
+    attributes: Optional[Dict[str, Any]] = None
+    messageId: Optional[str] = None
+
+class PubSubPushPayload(BaseModel):
+    message: PubSubMessage
+    subscription: Optional[str] = None
+
 
 # --- API Routes ---
 
+@app.get("/health")
 @app.get("/api/health")
 def health_check():
     return {"status": "ok", "app": "CLIFF Backend", "timestamp": datetime.utcnow().isoformat()}
@@ -269,6 +299,511 @@ def update_user_profile(payload: ProfileUpdatePayload, session: Session = Depend
     session.commit()
 
     return profile
+
+def extract_text_from_file(filename: str, content: bytes) -> str:
+    filename_lower = filename.lower()
+    text = ""
+    if filename_lower.endswith(".pdf"):
+        reader = pypdf.PdfReader(io.BytesIO(content))
+        pages_text = []
+        for page in reader.pages:
+            t = page.extract_text()
+            if t:
+                pages_text.append(t)
+        text = "\n".join(pages_text)
+    elif filename_lower.endswith(".docx") or filename_lower.endswith(".doc"):
+        doc = docx.Document(io.BytesIO(content))
+        paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
+        for table in doc.tables:
+            for row in table.rows:
+                row_text = " | ".join([cell.text.strip() for cell in row.cells if cell.text.strip()])
+                if row_text:
+                    paragraphs.append(row_text)
+        text = "\n".join(paragraphs)
+    else:
+        # Fallback for plain text, markdown, etc.
+        text = content.decode("utf-8", errors="replace")
+    return text.strip()
+
+@app.post("/api/profile/upload-resume")
+async def upload_and_parse_resume(
+    file: UploadFile = File(...),
+    session: Session = Depends(get_session)
+):
+    logger.info("=" * 60)
+    logger.info(f"--> [POST /api/profile/upload-resume] Ingesting resume: '{file.filename}' (content-type: '{file.content_type}')")
+    
+    content = await file.read()
+    if len(content) == 0:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+    
+    # 1. Extract raw text from file
+    try:
+        raw_text = extract_text_from_file(file.filename, content)
+    except Exception as e:
+        logger.error(f"[POST /api/profile/upload-resume] Error extracting text from {file.filename}: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+    
+    if len(raw_text) < 20:
+        raise HTTPException(status_code=400, detail="Could not extract readable text from document. Please ensure the file contains readable text or export as standard PDF/DOCX.")
+
+    logger.info(f"[POST /api/profile/upload-resume] Successfully extracted {len(raw_text)} chars of text from '{file.filename}'.")
+
+    # 2. Decompose into structured profile with AI engine
+    logger.info("[POST /api/profile/upload-resume] Parsing into structured candidate profile via AI engine...")
+    parsed_profile = parse_resume_to_structured_profile(raw_text)
+    logger.info(f"[POST /api/profile/upload-resume] Parsed profile: Name='{parsed_profile.get('full_name')}', Skills=({len(parsed_profile.get('skills', []))}), Blocks=({len(parsed_profile.get('experience_blocks', []))})")
+
+    # 3. Update UserProfile in database
+    profile = session.exec(select(UserProfile)).first()
+    if not profile:
+        profile = UserProfile(
+            full_name=parsed_profile.get("full_name") or "Candidate",
+            email=parsed_profile.get("email") or "",
+            phone=parsed_profile.get("phone") or ""
+        )
+        session.add(profile)
+
+    if parsed_profile.get("full_name") and parsed_profile["full_name"] != "Candidate":
+        profile.full_name = parsed_profile["full_name"]
+    if parsed_profile.get("email"):
+        profile.email = parsed_profile["email"]
+    if parsed_profile.get("phone"):
+        profile.phone = parsed_profile["phone"]
+    if parsed_profile.get("location"):
+        profile.location = parsed_profile["location"]
+    if parsed_profile.get("linkedin_url"):
+        profile.linkedin_url = parsed_profile["linkedin_url"]
+    if parsed_profile.get("github_url"):
+        profile.github_url = parsed_profile["github_url"]
+    if parsed_profile.get("portfolio_url"):
+        profile.portfolio_url = parsed_profile["portfolio_url"]
+
+    profile.master_resume_text = raw_text
+    
+    # Merge existing skills with newly extracted skills
+    existing_skills = profile.skills or []
+    new_skills = parsed_profile.get("skills", [])
+    combined_skills = sorted(list(set(existing_skills + new_skills)))
+    profile.skills = combined_skills
+
+    if parsed_profile.get("experience_blocks"):
+        profile.experience_blocks = parsed_profile["experience_blocks"]
+    
+    # Merge standard answers
+    current_std = profile.standard_answers or {}
+    new_std = parsed_profile.get("standard_answers", {})
+    for k, v in new_std.items():
+        if not current_std.get(k) and v:
+            current_std[k] = v
+    profile.standard_answers = current_std
+
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+    logger.info(f"[POST /api/profile/upload-resume] UserProfile ID={profile.id} successfully updated with parsed data.")
+
+    # 4. Re-calculate match scores across all saved jobs
+    jobs = session.exec(select(Job)).all()
+    rescored_count = 0
+    for job in jobs:
+        intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
+        if intel:
+            parsed = parse_job_intelligence(
+                raw_description=job.raw_description,
+                title=job.title,
+                company=job.company,
+                candidate_skills=profile.skills
+            )
+            job.match_score = parsed["match_score"]
+            intel.matched_skills = parsed["matched_skills"]
+            intel.missing_skills = parsed["missing_skills"]
+            session.add(job)
+            session.add(intel)
+            rescored_count += 1
+    session.commit()
+    logger.info(f"[POST /api/profile/upload-resume] Automatically re-scored {rescored_count} existing jobs against updated skills matrix.")
+    logger.info("=" * 60)
+
+    return {
+        "status": "success",
+        "message": f"Resume parsed successfully! Extracted {len(profile.skills)} skills and {len(profile.experience_blocks or [])} experience blocks.",
+        "profile": profile,
+        "rescored_jobs_count": rescored_count,
+        "raw_text_length": len(raw_text)
+    }
+
+GCS_RESUMES_BUCKET = os.getenv("GCS_RESUMES_BUCKET", "cliff-resumes-prod-b3e45c44")
+SERVICE_ACCOUNT_EMAIL = os.getenv("SERVICE_ACCOUNT_EMAIL", "cliff-app-sa-prod@cliff-512020.iam.gserviceaccount.com")
+
+def _commit_parsed_profile_and_rescore(session: Session, parsed_profile: Dict[str, Any], raw_text: str) -> int:
+    """Helper to commit parsed profile updates to PostgreSQL and recalculate match scores across all jobs."""
+    profile = session.exec(select(UserProfile)).first()
+    if not profile:
+        profile = UserProfile(
+            full_name=parsed_profile.get("full_name") or "Candidate",
+            email=parsed_profile.get("email") or "",
+            phone=parsed_profile.get("phone") or ""
+        )
+        session.add(profile)
+
+    if parsed_profile.get("full_name") and parsed_profile["full_name"] != "Candidate":
+        profile.full_name = parsed_profile["full_name"]
+    if parsed_profile.get("email"):
+        profile.email = parsed_profile["email"]
+    if parsed_profile.get("phone"):
+        profile.phone = parsed_profile["phone"]
+    if parsed_profile.get("location"):
+        profile.location = parsed_profile["location"]
+    if parsed_profile.get("linkedin_url"):
+        profile.linkedin_url = parsed_profile["linkedin_url"]
+    if parsed_profile.get("github_url"):
+        profile.github_url = parsed_profile["github_url"]
+    if parsed_profile.get("portfolio_url"):
+        profile.portfolio_url = parsed_profile["portfolio_url"]
+
+    profile.master_resume_text = raw_text
+
+    # Merge skills
+    existing_skills = profile.skills or []
+    new_skills = parsed_profile.get("skills", [])
+    profile.skills = sorted(list(set(existing_skills + new_skills)))
+
+    if parsed_profile.get("experience_blocks"):
+        profile.experience_blocks = parsed_profile["experience_blocks"]
+
+    # Merge standard answers
+    current_std = profile.standard_answers or {}
+    new_std = parsed_profile.get("standard_answers", {})
+    for k, v in new_std.items():
+        if not current_std.get(k) and v:
+            current_std[k] = v
+    profile.standard_answers = current_std
+
+    session.add(profile)
+    session.commit()
+    session.refresh(profile)
+
+    # Re-calculate match scores across saved jobs
+    jobs = session.exec(select(Job)).all()
+    rescored_count = 0
+    for job in jobs:
+        intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
+        if intel:
+            parsed = parse_job_intelligence(
+                raw_description=job.raw_description,
+                title=job.title,
+                company=job.company,
+                candidate_skills=profile.skills
+            )
+            job.match_score = parsed["match_score"]
+            intel.matched_skills = parsed["matched_skills"]
+            intel.missing_skills = parsed["missing_skills"]
+            session.add(job)
+            session.add(intel)
+            rescored_count += 1
+    session.commit()
+    return rescored_count
+
+@app.post("/api/storage/signed-upload-url")
+def get_signed_upload_url(
+    payload: SignedUploadUrlRequest,
+    session: Session = Depends(get_session)
+):
+    """
+    Generates a Google Cloud Storage v4 signed PUT URL for direct browser-to-bucket uploads.
+    Creates an asynchronous tracking task in PostgreSQL for frontend status polling.
+    """
+    bucket_name = GCS_RESUMES_BUCKET
+    task_id = str(uuid.uuid4())
+
+    if not bucket_name:
+        return {
+            "mode": "local",
+            "task_id": task_id,
+            "message": "GCS bucket not configured; using direct local API multipart upload."
+        }
+
+    try:
+        from google.cloud import storage
+        import google.auth
+        import google.auth.transport.requests
+
+        credentials, project = google.auth.default()
+        gcp_project = os.getenv("GCP_PROJECT_ID", project or "cliff-512020")
+        client = storage.Client(credentials=credentials, project=gcp_project)
+        bucket = client.bucket(bucket_name)
+
+        ext = payload.filename.split(".")[-1].lower() if "." in payload.filename else "pdf"
+        safe_filename = re.sub(r'[^a-zA-Z0-9_\.-]', '_', payload.filename)
+        object_name = f"resumes/{task_id}_{safe_filename}"
+        blob = bucket.blob(object_name)
+
+        # Resolve accurate MIME content type
+        content_type = payload.content_type
+        if not content_type or content_type == "application/octet-stream":
+            if ext == "pdf":
+                content_type = "application/pdf"
+            elif ext == "docx":
+                content_type = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            elif ext == "doc":
+                content_type = "application/msword"
+            elif ext in ["txt", "md"]:
+                content_type = "text/plain"
+            else:
+                content_type = "application/pdf"
+
+        sign_kwargs = {
+            "version": "v4",
+            "expiration": timedelta(minutes=15),
+            "method": "PUT",
+            "content_type": content_type
+        }
+
+        # Handle Compute Engine / Cloud Run credentials without in-memory private key
+        sa_email = SERVICE_ACCOUNT_EMAIL or getattr(credentials, "service_account_email", None)
+        if hasattr(credentials, "signer") and credentials.signer:
+            pass
+        else:
+            if not credentials.valid:
+                auth_req = google.auth.transport.requests.Request()
+                credentials.refresh(auth_req)
+            if sa_email:
+                sign_kwargs["service_account_email"] = sa_email
+                sign_kwargs["access_token"] = credentials.token
+
+        signed_url = blob.generate_signed_url(**sign_kwargs)
+
+        # Persist asynchronous tracking record
+        try:
+            task = ResumeUploadTask(
+                task_id=task_id,
+                filename=payload.filename,
+                object_name=object_name,
+                bucket_name=bucket_name,
+                status="PENDING",
+                stage_message="Signed upload URL ready. Awaiting browser upload..."
+            )
+            session.add(task)
+            session.commit()
+        except Exception as te:
+            logger.warning(f"[Storage] Could not persist tracking task {task_id}: {te}")
+
+        logger.info(f"[Storage] Generated GCS v4 signed PUT URL for task '{task_id}' -> '{object_name}'")
+        return {
+            "mode": "gcs",
+            "task_id": task_id,
+            "signed_url": signed_url,
+            "object_name": object_name,
+            "bucket_name": bucket_name,
+            "content_type": content_type,
+            "expires_in_seconds": 900
+        }
+    except Exception as e:
+        logger.warning(f"[Storage] Could not generate GCS signed URL ({e}), falling back to local mode.")
+        return {
+            "mode": "local",
+            "task_id": task_id,
+            "error": str(e),
+            "message": "Falling back to local multipart upload."
+        }
+
+@app.get("/api/profile/upload-status/{task_id}")
+def get_resume_upload_status(task_id: str, session: Session = Depends(get_session)):
+    """
+    Smart status polling endpoint for frontend to query async resume parsing progress.
+    """
+    task = session.exec(select(ResumeUploadTask).where(ResumeUploadTask.task_id == task_id)).first()
+    if not task:
+        raise HTTPException(status_code=404, detail=f"Task {task_id} not found.")
+
+    res = {
+        "task_id": task.task_id,
+        "filename": task.filename,
+        "status": task.status,
+        "stage_message": task.stage_message,
+        "error_message": task.error_message,
+        "result_summary": task.result_summary,
+        "rescored_jobs_count": task.rescored_jobs_count,
+        "updated_at": task.updated_at.isoformat() if task.updated_at else None
+    }
+    if task.status == "COMPLETED":
+        profile = session.exec(select(UserProfile)).first()
+        res["profile"] = profile
+
+    return res
+
+@app.post("/api/internal/events/resume-uploaded")
+async def handle_resume_uploaded_event(
+    payload: PubSubPushPayload,
+    session: Session = Depends(get_session)
+):
+    """
+    Pub/Sub Push Webhook triggered by GCS OBJECT_FINALIZE events.
+    Downloads the resume, runs Vertex AI parsing, and updates profile + job match scores.
+    """
+    task = None
+    try:
+        if not payload.message or not payload.message.data:
+            return {"status": "ignored", "reason": "Empty message data"}
+
+        raw_json_str = base64.b64decode(payload.message.data).decode("utf-8")
+        data = json.loads(raw_json_str)
+        bucket_name = data.get("bucket") or GCS_RESUMES_BUCKET
+        object_name = data.get("name")
+        logger.info(f"[Pub/Sub Event] GCS object event received: {bucket_name}/{object_name}")
+
+        if not object_name or not object_name.startswith("resumes/"):
+            return {"status": "ignored", "reason": "Not a resume object"}
+
+        filename_part = object_name.split("/")[-1]
+        task_id = filename_part.split("_")[0] if "_" in filename_part else None
+
+        if task_id:
+            task = session.exec(select(ResumeUploadTask).where(ResumeUploadTask.task_id == task_id)).first()
+
+        if task:
+            task.status = "PROCESSING"
+            task.stage_message = "Document landed in GCS. Extracting text & running Vertex AI analysis..."
+            task.updated_at = datetime.now(timezone.utc)
+            session.add(task)
+            session.commit()
+
+        # 1. Download file from GCS
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(object_name)
+
+        if not blob.exists():
+            if task:
+                task.status = "FAILED"
+                task.error_message = f"Object '{object_name}' not found in GCS"
+                task.updated_at = datetime.now(timezone.utc)
+                session.add(task)
+                session.commit()
+            return {"status": "error", "reason": "Blob not found"}
+
+        content = blob.download_as_bytes()
+        raw_text = extract_text_from_file(filename_part, content)
+
+        if len(raw_text) < 20:
+            if task:
+                task.status = "FAILED"
+                task.error_message = "Could not extract readable text from document."
+                task.updated_at = datetime.now(timezone.utc)
+                session.add(task)
+                session.commit()
+            return {"status": "error", "reason": "No readable text"}
+
+        # 2. Decompose with Vertex AI
+        if task:
+            task.stage_message = "Decomposing skills and modular experience with Vertex AI Gemini..."
+            task.updated_at = datetime.now(timezone.utc)
+            session.add(task)
+            session.commit()
+
+        parsed_profile = parse_resume_to_structured_profile(raw_text)
+
+        # 3. Commit profile and rescore jobs
+        rescored_count = _commit_parsed_profile_and_rescore(session, parsed_profile, raw_text)
+
+        # 4. Mark Task Completed
+        if task:
+            task.status = "COMPLETED"
+            task.stage_message = f"Decomposition complete! Extracted {len(parsed_profile.get('skills', []))} skills. Re-scored {rescored_count} jobs."
+            task.result_summary = f"Extracted {len(parsed_profile.get('skills', []))} skills and {len(parsed_profile.get('experience_blocks', []))} experience blocks."
+            task.rescored_jobs_count = rescored_count
+            task.updated_at = datetime.now(timezone.utc)
+            session.add(task)
+            session.commit()
+
+        logger.info(f"[Pub/Sub Event] Successfully parsed resume {object_name}. {rescored_count} jobs rescored.")
+        return {"status": "success", "task_id": task_id, "rescored_jobs_count": rescored_count}
+
+    except Exception as e:
+        logger.error(f"[Pub/Sub Event] Error processing resume upload event: {e}", exc_info=True)
+        if task:
+            task.status = "FAILED"
+            task.error_message = str(e)
+            task.updated_at = datetime.now(timezone.utc)
+            session.add(task)
+            session.commit()
+        return {"status": "error", "detail": str(e)}
+
+@app.post("/api/profile/process-uploaded-resume")
+async def process_uploaded_resume(
+    payload: ProcessUploadedResumePayload,
+    session: Session = Depends(get_session)
+):
+    """
+    Direct synchronous processing endpoint (used as backup or for local testing).
+    Downloads resume from GCS, runs Vertex AI decomposition, and updates database.
+    """
+    bucket_name = payload.bucket_name or GCS_RESUMES_BUCKET
+    if not bucket_name:
+        raise HTTPException(status_code=400, detail="GCS bucket name not provided or configured.")
+
+    task = None
+    if payload.task_id:
+        task = session.exec(select(ResumeUploadTask).where(ResumeUploadTask.task_id == payload.task_id)).first()
+
+    logger.info("=" * 60)
+    logger.info(f"--> [POST /api/profile/process-uploaded-resume] Downloading '{payload.object_name}' from GCS bucket '{bucket_name}'...")
+    try:
+        from google.cloud import storage
+        client = storage.Client()
+        bucket = client.bucket(bucket_name)
+        blob = bucket.blob(payload.object_name)
+
+        if not blob.exists():
+            raise HTTPException(status_code=404, detail=f"Object '{payload.object_name}' not found in bucket '{bucket_name}'.")
+
+        content = blob.download_as_bytes()
+        filename = payload.object_name.split("/")[-1]
+    except Exception as e:
+        logger.error(f"[Storage] Error downloading from GCS: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve file from GCS: {str(e)}")
+
+    # 1. Extract raw text
+    try:
+        raw_text = extract_text_from_file(filename, content)
+    except Exception as e:
+        logger.error(f"[Storage] Error extracting text from {filename}: {e}")
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}")
+
+    if len(raw_text) < 20:
+        raise HTTPException(status_code=400, detail="Could not extract readable text from document.")
+
+    logger.info(f"[Storage] Extracted {len(raw_text)} chars from GCS blob '{payload.object_name}'. Decomposing with AI...")
+    parsed_profile = parse_resume_to_structured_profile(raw_text)
+
+    # 2. Update UserProfile and rescore jobs via shared helper
+    rescored_count = _commit_parsed_profile_and_rescore(session, parsed_profile, raw_text)
+
+    profile = session.exec(select(UserProfile)).first()
+
+    if task:
+        task.status = "COMPLETED"
+        task.stage_message = f"Decomposition complete! Extracted {len(profile.skills)} skills."
+        task.result_summary = f"Extracted {len(profile.skills)} skills and {len(profile.experience_blocks or [])} experience blocks."
+        task.rescored_jobs_count = rescored_count
+        task.updated_at = datetime.now(timezone.utc)
+        session.add(task)
+        session.commit()
+
+    logger.info(f"[Storage] Successfully processed resume. Profile updated, {rescored_count} jobs rescored.")
+    logger.info("=" * 60)
+
+    return {
+        "status": "success",
+        "message": f"Resume parsed from Cloud Storage! Extracted {len(profile.skills)} skills and {len(profile.experience_blocks or [])} experience blocks.",
+        "profile": profile,
+        "rescored_jobs_count": rescored_count,
+        "object_name": payload.object_name,
+        "task_id": payload.task_id,
+        "raw_text_length": len(raw_text)
+    }
 
 def format_job(job: Job) -> dict:
     return {

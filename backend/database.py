@@ -1,45 +1,69 @@
 import os
 from typing import Generator
+from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine, Session, select
-from models import UserProfile, Job, JobIntelligence
+from models import UserProfile, Job, JobIntelligence, ResumeUploadTask
 
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///cliff.db")
+import logging
 
-connect_args = {"check_same_thread": False} if "sqlite" in DATABASE_URL else {}
-engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
+logger = logging.getLogger("cliff.database")
 
-def migrate_job_columns():
-    try:
-        from sqlalchemy import text
-        with engine.connect() as conn:
-            result = conn.execute(text("PRAGMA table_info(job);"))
-            existing_cols = {row[1] for row in result.fetchall()}
-            
-            columns_to_add = {
-                "workplace_type": "TEXT DEFAULT ''",
-                "employment_type": "TEXT DEFAULT ''",
-                "seniority_level": "TEXT DEFAULT ''",
-                "is_easy_apply": "BOOLEAN DEFAULT 0",
-                "applicant_count": "TEXT DEFAULT ''",
-                "posted_date": "TEXT DEFAULT ''",
-                "company_logo": "TEXT DEFAULT ''",
-                "company_url": "TEXT DEFAULT ''",
-                "company_size": "TEXT DEFAULT ''",
-                "company_industry": "TEXT DEFAULT ''",
-                "hiring_manager": "JSON DEFAULT '{}'",
-            }
-            for col_name, col_def in columns_to_add.items():
-                if col_name not in existing_cols:
-                    conn.execute(text(f"ALTER TABLE job ADD COLUMN {col_name} {col_def};"))
-            conn.commit()
-    except Exception as e:
-        # If running on non-SQLite or table doesn't exist yet, create_all will handle it
-        pass
+INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME")
+DB_USER = os.getenv("DB_USER", "cliff_app")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "")
+DB_NAME = os.getenv("DB_NAME", "cliff")
+DB_HOST = os.getenv("DB_HOST", "localhost")
+DB_PORT = os.getenv("DB_PORT", "5432")
+
+# Construct PostgreSQL connection URL
+if INSTANCE_CONNECTION_NAME:
+    # Connect via Cloud SQL Unix socket mounted at /cloudsql/<INSTANCE_CONNECTION_NAME>
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}"
+    logger.info(f"Connecting to Cloud SQL PostgreSQL: {INSTANCE_CONNECTION_NAME}/{DB_NAME}")
+elif os.getenv("DATABASE_URL"):
+    raw_url = os.getenv("DATABASE_URL")
+    if raw_url.startswith("postgresql://"):
+        DATABASE_URL = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
+    else:
+        DATABASE_URL = raw_url
+    logger.info("Connecting to PostgreSQL using DATABASE_URL")
+else:
+    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
+    logger.info(f"Connecting to PostgreSQL: {DB_HOST}:{DB_PORT}/{DB_NAME}")
+
+# Connection pool settings
+engine_args = {
+    "echo": False,
+}
+if "sqlite" in DATABASE_URL:
+    engine_args["connect_args"] = {"check_same_thread": False}
+else:
+    engine_args.update({
+        "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
+        "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
+        "pool_pre_ping": True,
+        "pool_recycle": 1800,
+    })
+
+engine = create_engine(DATABASE_URL, **engine_args)
+
 
 def create_db_and_tables():
-    SQLModel.metadata.create_all(engine)
-    migrate_job_columns()
-    seed_default_profile_if_empty()
+    """Initializes PostgreSQL tables and optional pgvector extension."""
+    try:
+        # Enable pgvector if permissions allow
+        try:
+            with engine.connect() as conn:
+                conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
+                conn.commit()
+        except Exception as ve:
+            logger.debug(f"pgvector extension check note: {ve}")
+
+        SQLModel.metadata.create_all(engine)
+        seed_default_profile_if_empty()
+        logger.info("PostgreSQL database and tables initialized successfully.")
+    except Exception as e:
+        logger.error(f"Error during PostgreSQL initialization: {e}", exc_info=True)
 
 def get_session() -> Generator[Session, None, None]:
     with Session(engine) as session:
@@ -127,4 +151,3 @@ B.S. in Computer Science | University of California, Berkeley | 2015 - 2019
             )
             session.add(default_profile)
             session.commit()
-

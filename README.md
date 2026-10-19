@@ -7,6 +7,8 @@ CLIFF bridges the gap between job discovery and job application by combining:
 2. **React Dashboard (Port 5173)**: High-performance Kanban pipeline, side-by-side skill gap breakdown (Matched vs. Missing skills), and per-job AI Studio.
 3. **Manifest V3 Chrome Extension**: One-click LinkedIn job scraper, ATS form-autofiller (Greenhouse, Lever, Workday, Ashby), inline AI textarea answer drafter, and background Workday session sync.
 
+> 📋 **Engineering Roadmap & Master Tracker**: See [MASTER_TRACKER.md](file:///home/dipes/projects/CLIFF/MASTER_TRACKER.md) for decision logs, multi-phase roadmap, and task status.
+
 ---
 
 ## 🏛 Architecture & Project Structure

@@ -1,0 +1,33 @@
+name: Deploy Backend to Google Cloud Run
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    name: Call Reusable Cloud Run Deployment
+    uses: dipeshsingh2012/shared-workflows/.github/workflows/deploy-cloud-run.yml@main
+    with:
+      service_name: 'cliff-backend-prod'
+      port: 8080
+      region: 'us-central1'
+      project_id: 'cliff-512020'
+      gar_repository: 'cliff-repo'
+      dockerfile: 'backend/Dockerfile'
+      context: 'backend'
+      health_check_path: '/api/health'
+      memory: '1Gi'
+      cpu: '1'
+    secrets:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EXTRA_ENV_VARS: ${{ secrets.EXTRA_ENV_VARS }}

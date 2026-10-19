@@ -1,0 +1,114 @@
+name: Deploy Infrastructure (Terraform)
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/deploy-infra.yml'
+  pull_request:
+    branches:
+      - main
+    paths:
+      - 'terraform/**'
+      - '.github/workflows/deploy-infra.yml'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform Action to execute'
+        required: true
+        default: 'apply'
+        type: choice
+        options:
+          - apply
+          - plan
+
+permissions:
+  contents: read
+  id-token: write
+  pull-requests: write
+
+concurrency:
+  group: terraform-prod
+  cancel-in-progress: false
+
+jobs:
+  terraform:
+    name: Terraform Plan & Apply
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (Service Account Key)
+        if: ${{ secrets.GCP_SA_KEY != '' || secrets.GOOGLE_CREDENTIALS != '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY || secrets.GOOGLE_CREDENTIALS }}
+
+      - name: Authenticate to Google Cloud (Keyless WIF)
+        if: ${{ secrets.GCP_SA_KEY == '' && secrets.GOOGLE_CREDENTIALS == '' }}
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER || vars.GCP_WORKLOAD_IDENTITY_PROVIDER || 'projects/518971663061/locations/global/workloadIdentityPools/github-actions-pool/providers/github-provider' }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT || vars.GCP_SERVICE_ACCOUNT || 'gh-actions-deployer@mycommerce-508208.iam.gserviceaccount.com' }}
+
+      - name: Set up Google Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.8.0'
+          terraform_wrapper: true
+
+      - name: Bootstrap State Bucket & Seed Initial State
+        run: |
+          PROJECT_ID="${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}"
+          BUCKET_NAME="cliff-tfstate-${PROJECT_ID}"
+          echo "Ensuring Terraform state bucket gs://${BUCKET_NAME} exists..."
+          if ! gcloud storage buckets describe "gs://${BUCKET_NAME}" >/dev/null 2>&1; then
+            echo "Creating state bucket gs://${BUCKET_NAME} in us-central1..."
+            gcloud storage buckets create "gs://${BUCKET_NAME}" \
+              --project="${PROJECT_ID}" \
+              --location="us-central1" \
+              --uniform-bucket-level-access
+            gcloud storage buckets update "gs://${BUCKET_NAME}" --versioning
+          fi
+
+          STATE_OBJECT="gs://${BUCKET_NAME}/terraform/state/default.tfstate"
+          if ! gcloud storage objects describe "${STATE_OBJECT}" >/dev/null 2>&1; then
+            if [ -f "terraform.tfstate" ]; then
+              echo "Seeding initial local terraform.tfstate to ${STATE_OBJECT}..."
+              gcloud storage cp terraform.tfstate "${STATE_OBJECT}"
+            fi
+          fi
+
+      - name: Terraform Format Check
+        run: terraform fmt -check
+
+      - name: Terraform Init
+        run: |
+          PROJECT_ID="${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}"
+          terraform init -backend-config="bucket=cliff-tfstate-${PROJECT_ID}"
+
+      - name: Terraform Validate
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        run: |
+          terraform plan -input=false -no-color -out=tfplan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.action == 'apply'))
+        run: |
+          terraform apply -input=false -auto-approve tfplan
+

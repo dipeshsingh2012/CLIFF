@@ -2,12 +2,13 @@
 (function () {
   console.log("[CLIFF] ATS Autofill initialized on", window.location.href);
 
+  const API_BASE = "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/api";
   let cachedProfile = null;
 
   async function fetchProfile() {
     if (cachedProfile) return cachedProfile;
     try {
-      const res = await fetch("http://localhost:8000/api/profile");
+      const res = await fetch(`${API_BASE}/profile`);
       if (res.ok) {
         cachedProfile = await res.json();
         return cachedProfile;
@@ -32,7 +33,7 @@
   async function performAutofill() {
     const profile = await fetchProfile();
     if (!profile) {
-      alert("CLIFF: Could not connect to backend at http://localhost:8000. Please ensure the CLIFF backend is running.");
+      alert(`CLIFF: Could not connect to backend at ${API_BASE}. Please ensure the CLIFF service is accessible.`);
       return;
     }
 
@@ -200,7 +201,7 @@
       aiBtn.onclick = async () => {
         aiBtn.innerHTML = `<span>⏳</span><span>CLIFF Drafting Answer...</span>`;
         try {
-          const res = await fetch("http://localhost:8000/api/ai/draft-answer", {
+          const res = await fetch(`${API_BASE}/ai/draft-answer`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

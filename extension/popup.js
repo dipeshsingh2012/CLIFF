@@ -15,7 +15,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const previewTitle = document.getElementById("preview-title");
   const previewCompany = document.getElementById("preview-company");
 
-  const API_BASE = "http://localhost:8000/api";
+  const API_BASE = "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/api";
 
   // 1. Check Backend Status
   async function checkBackend() {
@@ -23,7 +23,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       const res = await fetch(`${API_BASE}/health`);
       if (res.ok) {
         statusDot.className = "status-dot status-online";
-        statusText.innerText = "API Live (8000)";
+        statusText.innerText = "API Live (Cloud Run)";
         return true;
       }
     } catch (e) {

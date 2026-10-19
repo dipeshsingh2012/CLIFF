@@ -2,6 +2,8 @@
 (function () {
   console.log("[CLIFF] Content Scraper initialized on", window.location.href);
 
+  const API_BASE = "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/api";
+
   function extractJobDetails() {
     let title = "";
     let company = "";
@@ -379,7 +381,7 @@
       `;
 
       try {
-        const response = await fetch("http://localhost:8000/api/jobs", {
+        const response = await fetch(`${API_BASE}/jobs`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(jobData)
@@ -401,7 +403,7 @@
       } catch (err) {
         console.warn("[CLIFF] Ingest failed:", err);
         badge.innerHTML = `
-          <div style="color: #f87171; font-size: 11px;">Backend Offline (Make sure port 8000 is running)</div>
+          <div style="color: #f87171; font-size: 11px;">CLIFF Backend Offline (Cloud Run)</div>
         `;
         setTimeout(() => {
           injectFloatingCliffBadge();

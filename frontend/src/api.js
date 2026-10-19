@@ -1,4 +1,4 @@
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = import.meta.env.VITE_API_BASE || "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/api";
 
 export async function checkHealth() {
   try {
@@ -105,4 +105,64 @@ export async function draftAnswer(question, jobContext = "") {
   if (!res.ok) throw new Error("Failed to draft answer");
   return res.json();
 }
+
+export async function uploadResume(file) {
+  const formData = new FormData();
+  formData.append("file", file);
+
+  const res = await fetch(`${API_BASE}/profile/upload-resume`, {
+    method: "POST",
+    body: formData,
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Upload failed" }));
+    throw new Error(err.detail || "Failed to upload and parse resume");
+  }
+  return res.json();
+}
+
+export async function getSignedUploadUrl(filename, contentType = "application/pdf") {
+  const res = await fetch(`${API_BASE}/storage/signed-upload-url`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filename, content_type: contentType }),
+  });
+  if (!res.ok) throw new Error("Failed to request storage upload URL");
+  return res.json();
+}
+
+export async function uploadDirectToStorage(signedUrl, file, signedContentType = null) {
+  const contentType = signedContentType || file.type || "application/pdf";
+  const res = await fetch(signedUrl, {
+    method: "PUT",
+    headers: {
+      "Content-Type": contentType
+    },
+    body: file
+  });
+  if (!res.ok) throw new Error(`Direct storage upload failed (HTTP ${res.status})`);
+  return true;
+}
+
+export async function processUploadedResume(objectName, bucketName = null, taskId = null) {
+  const res = await fetch(`${API_BASE}/profile/process-uploaded-resume`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ object_name: objectName, bucket_name: bucketName, task_id: taskId }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ detail: "Processing failed" }));
+    throw new Error(err.detail || "Failed to process uploaded resume from storage");
+  }
+  return res.json();
+}
+
+export async function getResumeUploadStatus(taskId) {
+  const res = await fetch(`${API_BASE}/profile/upload-status/${taskId}`);
+  if (!res.ok) throw new Error("Failed to fetch upload task status");
+  return res.json();
+}
+
+
+
 

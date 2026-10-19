@@ -24,6 +24,7 @@
     "cookies"
   ],
   "host_permissions": [
+    "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/*",
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
     "*://*.linkedin.com/*",

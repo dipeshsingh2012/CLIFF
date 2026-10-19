@@ -54,3 +54,16 @@ class JobIntelligence(SQLModel, table=True):
     matched_skills: List[str] = Field(default=[], sa_column=Column(JSON))
     summary: Optional[str] = Field(default="")
     role_responsibilities: List[str] = Field(default=[], sa_column=Column(JSON))
+
+class ResumeUploadTask(SQLModel, table=True):
+    task_id: str = Field(primary_key=True, index=True)
+    filename: str
+    object_name: str
+    bucket_name: str
+    status: str = Field(default="PENDING") # PENDING, UPLOADING, PROCESSING, COMPLETED, FAILED
+    stage_message: str = Field(default="Waiting for upload to Cloud Storage...")
+    error_message: Optional[str] = Field(default=None)
+    result_summary: Optional[str] = Field(default=None)
+    rescored_jobs_count: int = Field(default=0)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))

@@ -1,0 +1,15 @@
+# Sample terraform.tfvars
+# Copy this file to terraform.tfvars and populate your GCP Project ID:
+# cp terraform.tfvars.example terraform.tfvars
+
+project_id   = "your-gcp-project-id"
+region       = "us-central1"
+environment  = "prod"
+cors_origins = [
+  "http://localhost:5173",
+  "https://your-custom-domain.com"
+]
+
+# Cloud Run image (build and push via Google Cloud Build or Docker)
+backend_image = "us-central1-docker.pkg.dev/your-gcp-project-id/cliff-repo/cliff-backend:latest"
+

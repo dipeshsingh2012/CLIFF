@@ -1,0 +1,118 @@
+name: Autonomous Agentic SDLC
+
+run-name: >-
+  ${{
+    github.event_name == 'issue_comment' && format('💬 {0} on #{1} by @{2}', github.event.comment.body, github.event.issue.number, github.actor) ||
+    github.event_name == 'pull_request_review_comment' && format('💬 PR Diff Comment: "{0}" by @{1}', github.event.comment.body, github.actor) ||
+    github.event_name == 'pull_request_review' && format('💬 PR Review: "{0}" by @{1}', github.event.review.body, github.actor) ||
+    github.event_name == 'issues' && format('🎯 Issue #{0}: {1}', github.event.issue.number, github.event.issue.title) ||
+    github.event_name == 'pull_request' && format('🛡️ PR #{0} ({1}): {2}', github.event.pull_request.number, github.event.action, github.event.pull_request.title) ||
+    format('🛸 Fleet Workflow: {0}', github.event_name)
+  }}
+
+on:
+  issues:
+    types: [opened, labeled]
+  issue_comment:
+    types: [created, edited]
+  pull_request:
+    types: [opened, synchronize, labeled]
+  pull_request_review:
+    types: [submitted, edited]
+  pull_request_review_comment:
+    types: [created, edited]
+  repository_dispatch:
+    types: [mcp_initiative, mcp_start_dev, fleet_trigger]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  agentic-orchestrator:
+    name: "Autonomous SDLC Fleet"
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout Target Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout Central Agent Fleet
+        uses: actions/checkout@v4
+        with:
+          repository: dipeshsingh2012/agentic-fleet
+          path: .agentic-fleet
+
+      - name: Report Fleet Run Started
+        if: github.event_name == 'repository_dispatch' && github.event.client_payload.request_id != ''
+        continue-on-error: true
+        env:
+          CALLBACK_URL: ${{ vars.CLIFF_CALLBACK_URL }}
+          CALLBACK_TOKEN: ${{ secrets.CLIFF_CALLBACK_TOKEN }}
+          REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+        run: |
+          if [ -z "$CALLBACK_URL" ] || [ -z "$CALLBACK_TOKEN" ]; then
+            echo "::warning::Fleet callback URL/token is not configured."
+            exit 1
+          fi
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-connrefused --retry-delay 2 \
+            -X POST "$CALLBACK_URL" \
+            -H "Authorization: Bearer $CALLBACK_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -n \
+              --arg request_id "$REQUEST_ID" \
+              --arg status "running" \
+              --arg github_run_id "$RUN_ID" \
+              --arg github_run_attempt "$RUN_ATTEMPT" \
+              --arg run_url "$RUN_URL" \
+              '{request_id:$request_id,status:$status,github_run_id:$github_run_id,github_run_attempt:$github_run_attempt,run_url:$run_url}')"
+
+      - name: Run Agentic Fleet Action
+        id: fleet
+        uses: ./.agentic-fleet
+        with:
+          gemini-api-key: ${{ secrets.GEMINI_API_KEY }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Report Fleet Run Result
+        if: always() && github.event_name == 'repository_dispatch' && github.event.client_payload.request_id != ''
+        env:
+          CALLBACK_URL: ${{ vars.CLIFF_CALLBACK_URL }}
+          CALLBACK_TOKEN: ${{ secrets.CLIFF_CALLBACK_TOKEN }}
+          REQUEST_ID: ${{ github.event.client_payload.request_id }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          RUN_ID: ${{ github.run_id }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
+          FLEET_OUTCOME: ${{ steps.fleet.outcome }}
+        run: |
+          if [ -z "$CALLBACK_URL" ] || [ -z "$CALLBACK_TOKEN" ]; then
+            echo "::error::Fleet callback URL/token is not configured."
+            exit 1
+          fi
+          STATUS="failed"
+          if [ "$FLEET_OUTCOME" = "success" ]; then STATUS="succeeded"; fi
+          if [ "$FLEET_OUTCOME" = "cancelled" ]; then STATUS="cancelled"; fi
+          curl --fail-with-body --silent --show-error \
+            --retry 3 --retry-connrefused --retry-delay 2 \
+            -X POST "$CALLBACK_URL" \
+            -H "Authorization: Bearer $CALLBACK_TOKEN" \
+            -H "Content-Type: application/json" \
+            --data "$(jq -n \
+              --arg request_id "$REQUEST_ID" \
+              --arg status "$STATUS" \
+              --arg github_run_id "$RUN_ID" \
+              --arg github_run_attempt "$RUN_ATTEMPT" \
+              --arg run_url "$RUN_URL" \
+              --arg conclusion "$FLEET_OUTCOME" \
+              '{request_id:$request_id,status:$status,github_run_id:$github_run_id,github_run_attempt:$github_run_attempt,run_url:$run_url,conclusion:$conclusion}')"

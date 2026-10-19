@@ -2,7 +2,7 @@
 console.log("[CLIFF Background Worker] Initialized");
 
 const SYNC_ALARM_NAME = "cliff_background_sync_alarm";
-const API_BASE = "http://localhost:8000/api";
+const API_BASE = "https://cliff-backend-prod-gimnyg4ehq-uc.a.run.app/api";
 
 // Set up periodic alarm on extension installation or startup
 chrome.runtime.onInstalled.addListener(() => {
