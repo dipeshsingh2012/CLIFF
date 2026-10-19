@@ -23,13 +23,17 @@ terraform {
 
 
 provider "google" {
-  project = var.project_id
-  region  = var.region
+  project               = var.project_id
+  region                = var.region
+  user_project_override = true
+  billing_project       = var.project_id
 }
 
 provider "google-beta" {
-  project = var.project_id
-  region  = var.region
+  project               = var.project_id
+  region                = var.region
+  user_project_override = true
+  billing_project       = var.project_id
 }
 
 data "google_project" "project" {
@@ -39,17 +43,19 @@ data "google_project" "project" {
 # Enable required Google Cloud APIs automatically
 locals {
   services = [
-    "run.googleapis.com",              # Cloud Run
-    "sqladmin.googleapis.com",         # Cloud SQL
-    "storage.googleapis.com",          # Cloud Storage
-    "secretmanager.googleapis.com",    # Secret Manager
-    "aiplatform.googleapis.com",       # Vertex AI
-    "iamcredentials.googleapis.com",   # For v4 Signed URLs via IAM
-    "artifactregistry.googleapis.com", # Artifact Registry for Docker images
-    "cloudtasks.googleapis.com",       # Cloud Tasks for async queuing
-    "pubsub.googleapis.com",           # Pub/Sub for event-driven resume ingestion
-    "eventarc.googleapis.com",         # Eventarc for storage event triggers
-    "cloudbuild.googleapis.com"        # Cloud Build for container image builds
+    "run.googleapis.com",                 # Cloud Run
+    "sqladmin.googleapis.com",            # Cloud SQL
+    "storage.googleapis.com",             # Cloud Storage
+    "secretmanager.googleapis.com",       # Secret Manager
+    "aiplatform.googleapis.com",          # Vertex AI
+    "iamcredentials.googleapis.com",      # For v4 Signed URLs via IAM
+    "artifactregistry.googleapis.com",    # Artifact Registry for Docker images
+    "cloudtasks.googleapis.com",          # Cloud Tasks for async queuing
+    "pubsub.googleapis.com",              # Pub/Sub for event-driven resume ingestion
+    "eventarc.googleapis.com",            # Eventarc for storage event triggers
+    "cloudbuild.googleapis.com",          # Cloud Build for container image builds
+    "iam.googleapis.com",                 # Identity & Access Management
+    "cloudresourcemanager.googleapis.com" # Cloud Resource Manager
   ]
 }
 
@@ -60,4 +66,5 @@ resource "google_project_service" "apis" {
   disable_dependent_services = false
   disable_on_destroy         = false
 }
+
 

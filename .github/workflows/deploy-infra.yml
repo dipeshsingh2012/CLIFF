@@ -41,9 +41,15 @@ jobs:
       TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
       TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
       TF_VAR_environment: 'prod'
+      CLOUDSDK_CORE_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+      CLOUDSDK_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+      GCLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+      GCP_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+      GOOGLE_CLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
     defaults:
       run:
         working-directory: terraform
+
 
 
     steps:
