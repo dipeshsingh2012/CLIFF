@@ -197,11 +197,11 @@
     }
 
     // H. Applicant Count & Velocity
-    const applicantEl = detailPane.querySelector(".jobs-unified-top-card__applicant-count, .job-details-jobs-unified-top-card__primary-description-container span.tvm__text:has-text('applicant')");
+    const applicantEl = detailPane.querySelector(".jobs-unified-top-card__applicant-count");
     if (applicantEl && applicantEl.innerText.trim()) {
       applicantCount = applicantEl.innerText.trim();
     } else {
-      const descSpans = detailPane.querySelectorAll(".job-details-jobs-unified-top-card__primary-description-container span, .jobs-unified-top-card__primary-description span");
+      const descSpans = detailPane.querySelectorAll(".job-details-jobs-unified-top-card__primary-description-container span, .jobs-unified-top-card__primary-description span, span.tvm__text");
       for (const s of descSpans) {
         if (/applicant/i.test(s.innerText)) {
           applicantCount = s.innerText.trim();
@@ -209,6 +209,7 @@
         }
       }
     }
+
 
     // I. Posted Date / Freshness
     const postedEl = detailPane.querySelector(".posted-time-ago__text, time");
