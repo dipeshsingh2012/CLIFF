@@ -88,12 +88,15 @@ export default function ProfileManager({ onProfileUpdated }) {
     setIsSaving(true);
     try {
       const updated = await updateUserProfile(profile);
-      setProfile(updated);
+      if (updated && (updated.full_name || updated.skills || updated.email)) {
+        setProfile(updated);
+      }
       setSaveSuccess(true);
       if (onProfileUpdated) onProfileUpdated();
       setTimeout(() => setSaveSuccess(false), 2500);
     } catch (err) {
-      console.error(err);
+      console.error("Save profile error:", err);
+      alert("Failed to save profile: " + (err.message || "Network error"));
     } finally {
       setIsSaving(false);
     }

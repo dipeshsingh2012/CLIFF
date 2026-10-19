@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from pydantic import BaseModel
@@ -276,8 +276,36 @@ def get_user_profile(session: Session = Depends(get_session)):
         raise HTTPException(status_code=404, detail="User profile not initialized")
     return profile
 
+def _rescore_jobs_background(candidate_skills: List[str]):
+    """Background task to recalculate job match scores without blocking the HTTP PUT /api/profile response."""
+    try:
+        with Session(engine) as bg_session:
+            jobs = bg_session.exec(select(Job)).all()
+            for job in jobs:
+                intel = bg_session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
+                if intel:
+                    parsed = parse_job_intelligence(
+                        raw_description=job.raw_description,
+                        title=job.title,
+                        company=job.company,
+                        candidate_skills=candidate_skills
+                    )
+                    job.match_score = parsed["match_score"]
+                    intel.matched_skills = parsed["matched_skills"]
+                    intel.missing_skills = parsed["missing_skills"]
+                    bg_session.add(job)
+                    bg_session.add(intel)
+            bg_session.commit()
+            logger.info(f"[Profile] Background job re-scoring completed for {len(jobs)} jobs.")
+    except Exception as e:
+        logger.warning(f"[Profile] Background job re-scoring failed: {e}")
+
 @app.put("/api/profile")
-def update_user_profile(payload: ProfileUpdatePayload, session: Session = Depends(get_session)):
+def update_user_profile(
+    payload: ProfileUpdatePayload,
+    background_tasks: BackgroundTasks,
+    session: Session = Depends(get_session)
+):
     profile = session.exec(select(UserProfile)).first()
     if not profile:
         profile = UserProfile(full_name="Alex Rivera", email="alex@example.com", phone="")
@@ -291,23 +319,9 @@ def update_user_profile(payload: ProfileUpdatePayload, session: Session = Depend
     session.commit()
     session.refresh(profile)
 
-    # Re-calculate match scores for all saved jobs with updated candidate skills
-    jobs = session.exec(select(Job)).all()
-    for job in jobs:
-        intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
-        if intel:
-            parsed = parse_job_intelligence(
-                raw_description=job.raw_description,
-                title=job.title,
-                company=job.company,
-                candidate_skills=profile.skills
-            )
-            job.match_score = parsed["match_score"]
-            intel.matched_skills = parsed["matched_skills"]
-            intel.missing_skills = parsed["missing_skills"]
-            session.add(job)
-            session.add(intel)
-    session.commit()
+    # Re-calculate match scores asynchronously so the HTTP response returns immediately (<100ms)
+    if profile.skills:
+        background_tasks.add_task(_rescore_jobs_background, profile.skills)
 
     return profile
 
