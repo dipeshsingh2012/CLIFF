@@ -16,9 +16,11 @@ import {
   ArrowRight
 } from "lucide-react";
 import { tailorResume, generateCoverLetter, generateLearningRoadmap } from "../api";
+import MiniLmsAcademy from "./MiniLmsAcademy";
 
-export default function StudioView({ jobs, selectedJobId, onSelectJobId, initialTab = "resume" }) {
+export default function StudioView({ jobs, selectedJobId, onSelectJobId, initialTab = "resume", onSkillGraduated }) {
   const [activeSubTab, setActiveSubTab] = useState(initialTab);
+
   const [selectedJob, setSelectedJob] = useState(null);
 
   // Resume State
@@ -175,7 +177,7 @@ export default function StudioView({ jobs, selectedJobId, onSelectJobId, initial
             }`}
           >
             <GraduationCap className="w-3.5 h-3.5" />
-            <span>Skill Gap Roadmap</span>
+            <span>CLIFF Academy (LMS)</span>
           </button>
         </div>
 
@@ -461,99 +463,12 @@ export default function StudioView({ jobs, selectedJobId, onSelectJobId, initial
         </div>
       )}
 
-      {/* Sub-Tab 3: Skill Gap Roadmap */}
+      {/* Sub-Tab 3: CLIFF Academy / Mini-LMS */}
       {activeSubTab === "roadmap" && (
-        <div className="space-y-6">
-          {!roadmapData && !isGeneratingRoadmap && (
-            <div className="bg-slate-900/40 border border-dashed border-slate-800 rounded-2xl p-12 text-center max-w-xl mx-auto space-y-4">
-              <GraduationCap className="w-10 h-10 text-teal-400 mx-auto" />
-              <h3 className="text-base font-bold text-white">14-Day Skill Bridging Roadmap</h3>
-              <p className="text-xs text-slate-400">
-                Targeting gaps: {selectedJob.intelligence?.missing_skills?.join(", ") || "General cloud & architecture competencies"}.
-                Generate concrete project tutorials and interview talking points to prove proficiency.
-              </p>
-              <button
-                onClick={() => handleGenerateRoadmap()}
-                className="bg-gradient-to-r from-teal-500 to-emerald-600 hover:from-teal-400 hover:to-emerald-500 text-slate-950 font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition-all active:scale-95 inline-flex items-center space-x-2"
-              >
-                <Sparkles className="w-4 h-4 fill-slate-950" />
-                <span>Build Skill Gap Roadmap</span>
-              </button>
-            </div>
-          )}
-
-          {isGeneratingRoadmap && (
-            <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-12 text-center max-w-md mx-auto space-y-3">
-              <RefreshCw className="w-8 h-8 text-teal-400 mx-auto animate-spin" />
-              <h4 className="text-sm font-semibold text-slate-200">Structuring Learning Paths...</h4>
-              <p className="text-xs text-slate-500">Analyzing free resources and project blueprints</p>
-            </div>
-          )}
-
-          {roadmapData && (
-            <div className="space-y-6">
-              
-              {/* Overview banner */}
-              <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5">
-                <span className="text-xs font-bold uppercase tracking-wider text-teal-400 block mb-1">
-                  Strategic Overview
-                </span>
-                <p className="text-sm text-slate-200 leading-relaxed">
-                  {roadmapData.overview}
-                </p>
-              </div>
-
-              {/* Topics Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {roadmapData.key_topics?.map((topic, idx) => (
-                  <div key={idx} className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-bold text-white">{topic.skill}</span>
-                      <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
-                        topic.priority === "High" ? "bg-rose-500/10 text-rose-400 border-rose-500/30" : "bg-teal-500/10 text-teal-400 border-teal-500/30"
-                      }`}>
-                        {topic.priority} Priority
-                      </span>
-                    </div>
-
-                    <div className="space-y-1.5 text-xs">
-                      <div className="text-slate-400">
-                        <strong className="text-slate-200">Goal:</strong> {topic.learning_goal}
-                      </div>
-                      <div className="text-slate-400">
-                        <strong className="text-slate-200">Resource:</strong> {topic.recommended_resource}
-                      </div>
-                      <div className="bg-slate-950/70 p-3 rounded-xl border border-slate-800/80 mt-2 text-slate-300">
-                        <span className="text-teal-400 font-semibold block mb-0.5">⚡ 48-Hour Hands-on Project:</span>
-                        {topic.fast_track_project}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Interview Talking Points */}
-              {roadmapData.interview_talking_points && (
-                <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 space-y-3">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                    <Lightbulb className="w-3.5 h-3.5" />
-                    How to Handle Skill Gaps During Technical Interviews
-                  </h4>
-                  <ul className="space-y-2">
-                    {roadmapData.interview_talking_points.map((pt, idx) => (
-                      <li key={idx} className="text-xs text-slate-300 flex items-start space-x-2">
-                        <span className="text-teal-400 font-bold">•</span>
-                        <span>{pt}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-            </div>
-          )}
-
-        </div>
+        <MiniLmsAcademy 
+          job={selectedJob} 
+          onSkillGraduated={onSkillGraduated} 
+        />
       )}
 
     </div>

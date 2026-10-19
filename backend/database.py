@@ -2,7 +2,7 @@ import os
 from typing import Generator
 from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine, Session, select
-from models import UserProfile, Job, JobIntelligence, ResumeUploadTask
+from models import UserProfile, Job, JobIntelligence, ResumeUploadTask, JobLearningModule
 
 import logging
 

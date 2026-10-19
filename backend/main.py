@@ -15,7 +15,7 @@ import base64
 import pypdf
 import docx
 
-from models import UserProfile, Job, JobIntelligence, ResumeUploadTask
+from models import UserProfile, Job, JobIntelligence, ResumeUploadTask, JobLearningModule
 from database import engine, create_db_and_tables, get_session
 from ai_engine import (
     parse_job_intelligence,
@@ -23,8 +23,10 @@ from ai_engine import (
     generate_cover_letter,
     draft_ats_answer,
     generate_learning_roadmap,
+    generate_job_learning_module,
     parse_resume_to_structured_profile
 )
+
 
 logging.basicConfig(
     level=logging.INFO,
@@ -242,6 +244,10 @@ class LearningRoadmapPayload(BaseModel):
     job_id: Optional[int] = None
     missing_skills: Optional[List[str]] = None
     job_title: Optional[str] = "Software Engineer"
+
+class QuizSubmissionPayload(BaseModel):
+    answers: List[int]
+
 
 class SignedUploadUrlRequest(BaseModel):
     filename: str
@@ -1149,7 +1155,12 @@ def delete_job(job_id: int, session: Session = Depends(get_session)):
         logger.warning(f"<-- [DELETE /api/jobs/{job_id}] Job ID={job_id} not found in database.")
         raise HTTPException(status_code=404, detail="Job not found")
 
-    # 1. Delete all associated JobIntelligence records first and flush to satisfy foreign key constraint
+    # 1. Delete all associated JobLearningModule and JobIntelligence records first and flush to satisfy foreign key constraint
+    modules = session.exec(select(JobLearningModule).where(JobLearningModule.job_id == job.id)).all()
+    for m in modules:
+        logger.info(f"[DELETE /api/jobs/{job_id}] Removing associated JobLearningModule record ID={m.id} ('{m.skill_gap}')...")
+        session.delete(m)
+
     intels = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).all()
     for intel in intels:
         logger.info(f"[DELETE /api/jobs/{job_id}] Removing associated JobIntelligence record ID={intel.id}...")
@@ -1160,7 +1171,7 @@ def delete_job(job_id: int, session: Session = Depends(get_session)):
     logger.info(f"[DELETE /api/jobs/{job_id}] Removing Job record ID={job.id} ('{job.title}' @ '{job.company}')...")
     session.delete(job)
     session.commit()
-    logger.info(f"<-- [DELETE /api/jobs/{job_id}] Successfully deleted Job ID={job_id} and {len(intels)} intelligence record(s).")
+    logger.info(f"<-- [DELETE /api/jobs/{job_id}] Successfully deleted Job ID={job_id}, {len(intels)} intelligence record(s), and {len(modules)} learning module(s).")
     return {"message": "Job deleted successfully", "id": job_id}
 
 # 3. AI Intelligence Endpoints
@@ -1284,3 +1295,184 @@ def api_learning_roadmap(payload: LearningRoadmapPayload, session: Session = Dep
         company=company,
         raw_description=raw_description
     )
+
+# 4. CLIFF Academy / Job-Anchored Mini-LMS Endpoints
+
+@app.post("/api/lms/jobs/{job_id}/generate-track")
+def generate_lms_track(job_id: int, session: Session = Depends(get_session)):
+    logger.info(f"--> [POST /api/lms/jobs/{job_id}/generate-track] Generating LMS track for Job ID={job_id}")
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    intel = session.exec(select(JobIntelligence).where(JobIntelligence.job_id == job.id)).first()
+    gaps = []
+    if intel and intel.missing_skills:
+        gaps = intel.missing_skills
+    elif intel and intel.extracted_hard_skills:
+        profile = session.exec(select(UserProfile)).first()
+        user_skills = profile.skills if profile else []
+        gaps = [s for s in intel.extracted_hard_skills if s not in user_skills]
+
+    if not gaps:
+        gaps = ["System Design", "Cloud Architecture"]
+
+    # Target up to 5 skill gaps
+    target_gaps = gaps[:5]
+
+    existing_modules = session.exec(select(JobLearningModule).where(JobLearningModule.job_id == job.id)).all()
+    existing_skill_map = {m.skill_gap.lower(): m for m in existing_modules}
+
+    for skill in target_gaps:
+        if skill.lower() in existing_skill_map:
+            continue
+
+        module_data = generate_job_learning_module(
+            skill_gap=skill,
+            job_title=job.title or "Software Engineer",
+            company=job.company or "Target Company",
+            company_industry=job.company_industry or "",
+            company_size=job.company_size or "",
+            seniority_level=job.seniority_level or "",
+            raw_description=job.raw_description or ""
+        )
+
+        mod = JobLearningModule(
+            job_id=job.id,
+            skill_gap=skill,
+            module_title=module_data.get("module_title", f"Production {skill} for {job.company}"),
+            difficulty_level=module_data.get("difficulty_level", "Mid-Senior"),
+            company_context_summary=module_data.get("company_context_summary", ""),
+            reading_markdown=module_data.get("reading_markdown", ""),
+            quiz_questions=module_data.get("quiz_questions", []),
+            status="NOT_STARTED"
+        )
+        session.add(mod)
+        session.commit()
+        session.refresh(mod)
+
+    modules = session.exec(select(JobLearningModule).where(JobLearningModule.job_id == job.id)).all()
+    mastered_count = sum(1 for m in modules if m.status == "MASTERED")
+    return {
+        "job_id": job.id,
+        "company": job.company,
+        "role": job.title,
+        "total_modules": len(modules),
+        "mastered_modules": mastered_count,
+        "modules": [m.model_dump() for m in modules]
+    }
+
+@app.get("/api/lms/jobs/{job_id}/modules")
+def get_lms_modules(job_id: int, session: Session = Depends(get_session)):
+    job = session.get(Job, job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    modules = session.exec(select(JobLearningModule).where(JobLearningModule.job_id == job.id)).all()
+    mastered_count = sum(1 for m in modules if m.status == "MASTERED")
+    return {
+        "job_id": job.id,
+        "company": job.company,
+        "role": job.title,
+        "total_modules": len(modules),
+        "mastered_modules": mastered_count,
+        "modules": [m.model_dump() for m in modules]
+    }
+
+@app.get("/api/lms/modules/{module_id}")
+def get_lms_module(module_id: int, session: Session = Depends(get_session)):
+    mod = session.get(JobLearningModule, module_id)
+    if not mod:
+        raise HTTPException(status_code=404, detail="Module not found")
+    return mod.model_dump()
+
+@app.post("/api/lms/modules/{module_id}/submit-quiz")
+def submit_lms_quiz(module_id: int, payload: QuizSubmissionPayload, session: Session = Depends(get_session)):
+    mod = session.get(JobLearningModule, module_id)
+    if not mod:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    questions = mod.quiz_questions or []
+    if not questions:
+        raise HTTPException(status_code=400, detail="Module has no quiz questions")
+
+    correct_count = 0
+    detailed_results = []
+    user_answers = payload.answers or []
+
+    for i, q in enumerate(questions):
+        user_choice = user_answers[i] if i < len(user_answers) else -1
+        is_correct = (user_choice == q.get("correct_index"))
+        if is_correct:
+            correct_count += 1
+        detailed_results.append({
+            "question_id": q.get("id", i + 1),
+            "scenario": q.get("scenario", ""),
+            "question": q.get("question", ""),
+            "user_choice": user_choice,
+            "correct_index": q.get("correct_index"),
+            "is_correct": is_correct,
+            "explanation": q.get("explanation", "")
+        })
+
+    score = int(round((correct_count / len(questions)) * 100))
+    passed = score >= 80
+
+    mod.attempts_count += 1
+    if mod.best_score is None or score > mod.best_score:
+        mod.best_score = score
+
+    if passed:
+        mod.status = "MASTERED"
+        mod.completed_at = datetime.now(timezone.utc)
+    else:
+        if mod.status != "MASTERED":
+            mod.status = "IN_PROGRESS"
+
+    mod.updated_at = datetime.now(timezone.utc)
+    session.add(mod)
+    session.commit()
+    session.refresh(mod)
+
+    return {
+        "module_id": mod.id,
+        "score": score,
+        "passed": passed,
+        "status": mod.status,
+        "best_score": mod.best_score,
+        "attempts_count": mod.attempts_count,
+        "detailed_results": detailed_results
+    }
+
+@app.post("/api/lms/modules/{module_id}/graduate")
+def graduate_lms_skill(module_id: int, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    mod = session.get(JobLearningModule, module_id)
+    if not mod:
+        raise HTTPException(status_code=404, detail="Module not found")
+
+    profile = session.exec(select(UserProfile)).first()
+    if not profile:
+        raise HTTPException(status_code=404, detail="User profile not found")
+
+    skill_to_add = mod.skill_gap.strip()
+    current_skills = list(profile.skills or [])
+    if not any(s.lower() == skill_to_add.lower() for s in current_skills):
+        current_skills.append(skill_to_add)
+        profile.skills = current_skills
+        session.add(profile)
+
+    mod.graduated_to_profile = True
+    mod.updated_at = datetime.now(timezone.utc)
+    session.add(mod)
+    session.commit()
+    session.refresh(profile)
+
+    # Schedule background recalculation of job scores
+    background_tasks.add_task(_rescore_jobs_background, profile.skills)
+
+    return {
+        "message": f"Successfully graduated '{skill_to_add}' to your Master Profile! Job re-scoring running in background.",
+        "graduated_skill": skill_to_add,
+        "all_skills": profile.skills
+    }
+

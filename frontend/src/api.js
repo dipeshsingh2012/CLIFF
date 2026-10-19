@@ -172,6 +172,46 @@ export async function getResumeUploadStatus(taskId) {
   return res.json();
 }
 
+// CLIFF Academy / Mini-LMS
+export async function getLmsModules(jobId) {
+  const res = await fetch(`${API_BASE}/lms/jobs/${jobId}/modules`);
+  if (!res.ok) throw new Error("Failed to fetch learning modules");
+  return res.json();
+}
+
+export async function generateLmsTrack(jobId) {
+  const res = await fetch(`${API_BASE}/lms/jobs/${jobId}/generate-track`, {
+    method: "POST"
+  });
+  if (!res.ok) throw new Error("Failed to generate learning track");
+  return res.json();
+}
+
+export async function getLmsModuleDetail(moduleId) {
+  const res = await fetch(`${API_BASE}/lms/modules/${moduleId}`);
+  if (!res.ok) throw new Error("Failed to fetch module details");
+  return res.json();
+}
+
+export async function submitLmsQuiz(moduleId, answers) {
+  const res = await fetch(`${API_BASE}/lms/modules/${moduleId}/submit-quiz`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ answers })
+  });
+  if (!res.ok) throw new Error("Failed to submit quiz");
+  return res.json();
+}
+
+export async function graduateLmsSkill(moduleId) {
+  const res = await fetch(`${API_BASE}/lms/modules/${moduleId}/graduate`, {
+    method: "POST"
+  });
+  if (!res.ok) throw new Error("Failed to graduate skill");
+  return res.json();
+}
+
+
 
 
 

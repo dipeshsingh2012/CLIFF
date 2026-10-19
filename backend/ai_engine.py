@@ -533,6 +533,179 @@ Return a strict JSON object with this exact structure:
         }
     return result
 
+def generate_job_learning_module(
+    skill_gap: str,
+    job_title: str = "Software Engineer",
+    company: str = "Target Company",
+    company_industry: str = "",
+    company_size: str = "",
+    seniority_level: str = "",
+    raw_description: str = ""
+) -> Dict[str, Any]:
+    # Determine difficulty level from seniority_level and job_title
+    lower_title = (job_title or "").lower()
+    lower_sen = (seniority_level or "").lower()
+    if any(k in lower_sen or k in lower_title for k in ["staff", "principal", "director", "architect"]):
+        difficulty = "Staff / Principal"
+    elif any(k in lower_sen or k in lower_title for k in ["senior", "lead"]):
+        difficulty = "Senior"
+    elif any(k in lower_sen or k in lower_title for k in ["junior", "entry", "associate", "intern"]):
+        difficulty = "Foundational"
+    else:
+        difficulty = "Mid-Senior"
+
+    comp_name = company or "the target organization"
+    industry_str = f" in the {company_industry} sector" if company_industry else ""
+    size_str = f" (scale: {company_size})" if company_size else ""
+    company_full_ctx = f"{comp_name}{industry_str}{size_str}"
+
+    jd_snippet = f"\nTarget Job Context snippet:\n\"\"\"{raw_description[:1500]}\"\"\"\n" if raw_description else ""
+
+    prompt = f"""
+You are CLIFF Academy's Master Technical Curriculum Designer.
+Design an advanced, job-anchored theoretical learning module and scenario-based evaluation quiz for:
+- Target Skill to Bridge: "{skill_gap}"
+- Role: "{job_title}" (Seniority / Difficulty: {difficulty})
+- Target Organization: "{company_full_ctx}"
+{jd_snippet}
+
+CRITICAL REQUIREMENTS:
+1. STRICTLY NO hands-on coding exercises, PoC setups, or "hello world" code snippets.
+2. The entire briefing MUST be high-level theoretical, conceptual, and architectural. Anchor all theoretical trade-offs directly to {comp_name}'s domain, scale, and operational reality.
+3. Provide a deep scenario-based quiz with exactly 3 practical situational dilemmas testing system design, operational judgment, and trade-off analysis.
+
+Return a strict JSON object with this exact structure:
+{{
+  "module_title": "Comprehensive title (e.g. 'Production {skill_gap}: Architecture, Scale, and Resilience at {comp_name}')",
+  "difficulty_level": "{difficulty}",
+  "company_context_summary": "2-3 concise sentences detailing why {skill_gap} is strategically vital for {comp_name} given its industry and scale.",
+  "reading_markdown": "Markdown string containing:
+    ## 1. Architectural & Theoretical Foundations
+    Explain core conceptual mental models, consistency guarantees, data structures, and protocol mechanics.
+
+    ## 2. Real-World Application at {comp_name}
+    Analyze how this technology operates at the scale of {company_size or 'enterprise workloads'} within {company_industry or 'modern tech'}. Address latency, compliance, or reliability constraints.
+
+    ## 3. High-Stakes Production Traps & Failure Modes
+    Detail subtle edge cases, thundering herds, split-brain, memory leaks, or cascading failures that senior candidates must anticipate.
+
+    ## 4. Executive Interview Framing
+    How to articulate mastery of {skill_gap} and its production trade-offs in technical interviews with hiring leaders.",
+  "quiz_questions": [
+    {{
+      "id": 1,
+      "scenario": "Detailed situational scenario reflecting real-world conditions at {comp_name}...",
+      "question": "What is the most sound architectural or operational decision to resolve this dilemma?",
+      "options": [
+        "First plausible option",
+        "Second plausible option",
+        "Third plausible option",
+        "Fourth plausible option"
+      ],
+      "correct_index": 0,
+      "explanation": "In-depth rationale explaining why this choice is theoretically and operationally sound, and why the alternatives fail under production load."
+    }},
+    {{
+      "id": 2,
+      "scenario": "Another realistic failure mode or scaling challenge at {comp_name}...",
+      "question": "Which design pattern or configuration best mitigates this risk?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_index": 1,
+      "explanation": "Rigorous explanation of the underlying system mechanics."
+    }},
+    {{
+      "id": 3,
+      "scenario": "A third dilemma focusing on trade-offs between latency, throughput, consistency, and operational complexity...",
+      "question": "What trade-off best satisfies the service level objectives (SLOs)?",
+      "options": ["Option A", "Option B", "Option C", "Option D"],
+      "correct_index": 2,
+      "explanation": "Clear architectural evaluation of the trade-off matrix."
+    }}
+  ]
+}}
+"""
+    result = _call_gemini_json(prompt, system_instruction="You are CLIFF Academy's principal curriculum architect. Produce deep, rigorous, context-anchored theoretical learning modules and scenario quizzes.")
+    if not result and OPENAI_API_KEY:
+        result = _call_openai_json(prompt, system_instruction="You are CLIFF Academy's principal curriculum architect. Produce deep, rigorous, context-anchored theoretical learning modules and scenario quizzes.")
+    if not result:
+        # High quality deterministic fallback
+        reading_md = f"""# {skill_gap} at Scale: Architectural Principles for {comp_name}
+
+## 1. Architectural & Theoretical Foundations
+At its core, **{skill_gap}** provides foundational guarantees around modularity, distributed execution, and fault tolerance. In modern distributed systems, mastering {skill_gap} requires shifting mental models from isolated local execution to asynchronous, partition-tolerant topologies.
+- **State Coordination & Consistency**: Understanding how state is propagated across nodes without violating CAP constraints.
+- **Resource Isolation & Backpressure**: Preventing noisy neighbors and resource starvation across shared clusters.
+- **Decoupled Abstractions**: Separating control plane orchestration from data plane throughput.
+
+## 2. Real-World Application at {comp_name}
+For an organization in the **{company_industry or 'technology'}** sector operating at the scale of **{company_size or 'rapidly growing teams'}**, {skill_gap} is not just an implementation detail—it dictates time-to-market and operational resilience.
+- **Domain Constraints**: Balancing strict auditability and high-availability against system complexity.
+- **Scale Dynamics**: Ensuring that spikes in traffic or concurrent workflows degrade gracefully through circuit breaking and rate limiting rather than cascading failure.
+
+## 3. High-Stakes Production Traps & Failure Modes
+Senior engineers are distinguished not by knowing syntax, but by avoiding known failure modes:
+1. **The Thundering Herd**: Inadvertent synchronization of retry policies causing downstream service exhaustion.
+2. **Hidden State Leakage**: Accumulation of uncollected metadata or stale cache invalidations under sustained load.
+3. **Split-Brain Scenarios**: Network partitions where multiple instances attempt conflicting state mutations.
+
+## 4. Executive Interview Framing
+When discussing {skill_gap} with hiring managers and staff engineers at {comp_name}:
+- Anchor your explanations in **trade-offs** (e.g., consistency vs. latency, operational overhead vs. developer velocity).
+- Articulate the lifecycle of a production outage you prevented or remediated using these exact principles.
+"""
+        quiz = [
+            {
+                "id": 1,
+                "scenario": f"At {comp_name}, a critical downstream service experiences intermittent 504 gateway timeouts under peak load. Teams observe that multiple client workers are repeatedly retrying failed requests simultaneously.",
+                "question": "Which theoretical resilience pattern best mitigates this failure without overwhelming the downstream service?",
+                "options": [
+                    "Implement exponential backoff with full randomized jitter and an adaptive circuit breaker.",
+                    "Double the retry limit and decrease the connection timeout window.",
+                    "Switch all synchronous requests to unbounded in-memory queues without backpressure.",
+                    "Restart the client worker cluster every 15 minutes via automated cron jobs."
+                ],
+                "correct_index": 0,
+                "explanation": "Exponential backoff with full jitter de-synchronizes retry spikes, preventing thundering herd problems, while circuit breakers immediately stop doomed requests from consuming thread pools."
+            },
+            {
+                "id": 2,
+                "scenario": f"Given {comp_name}'s scale ({company_size or 'enterprise'}), a data pipeline utilizing {skill_gap} must guarantee strict message ordering per customer while maintaining high aggregate throughput across millions of tenants.",
+                "question": "Which architectural strategy best satisfies both strict per-customer ordering and horizontally scalable throughput?",
+                "options": [
+                    "Enforce a single global sequential partition for all tenants across the cluster.",
+                    "Partition events using the unique customer ID as the partition key, allowing parallel processing across multiple independent consumer partitions.",
+                    "Disable acknowledgements to maximize write throughput.",
+                    "Store all events in a single unindexed database table and query sequentially."
+                ],
+                "correct_index": 1,
+                "explanation": "Partitioning by customer key guarantees that events for any single customer land on the same partition and are processed sequentially, while distinct customers are distributed evenly across partitions for maximum parallelism."
+            },
+            {
+                "id": 3,
+                "scenario": f"During architectural review for a {job_title} role at {comp_name}, an interviewer asks how to defend against silent data corruption during high-throughput network partitions.",
+                "question": "What is the primary design trade-off according to the PACELC theorem?",
+                "options": [
+                    "Under partition (P), choose between Availability (A) and Consistency (C); Else (E), choose between Latency (L) and Consistency (C).",
+                    "A distributed system can always provide both total availability and zero latency under all network conditions.",
+                    "Strong consistency removes the need for replication across failure zones.",
+                    "Eventual consistency eliminates network latency completely."
+                ],
+                "correct_index": 0,
+                "explanation": "The PACELC theorem extends CAP: during a network partition one must trade availability for consistency, and in normal operations one must trade latency for consistency to synchronize state."
+            }
+        ]
+
+        result = {
+            "module_title": f"Production {skill_gap}: Architecture, Scale & Resilience at {comp_name}",
+            "difficulty_level": difficulty,
+            "company_context_summary": f"{skill_gap} is critical for {comp_name} to guarantee high availability, strict domain compliance, and seamless operational scalability across {company_size or 'distributed systems'}.",
+            "reading_markdown": reading_md,
+            "quiz_questions": quiz
+        }
+
+    return result
+
+
 def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
     text = resume_text.strip()
     lines = [line.strip() for line in text.split("\n") if line.strip()]

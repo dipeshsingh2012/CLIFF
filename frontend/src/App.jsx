@@ -156,6 +156,7 @@ export default function App() {
             selectedJobId={studioJobId}
             onSelectJobId={(id) => setStudioJobId(id)}
             initialTab={studioSubTab}
+            onSkillGraduated={() => fetchJobs(false)}
           />
         )}
 

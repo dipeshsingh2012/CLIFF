@@ -67,3 +67,21 @@ class ResumeUploadTask(SQLModel, table=True):
     rescored_jobs_count: int = Field(default=0)
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class JobLearningModule(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    job_id: int = Field(foreign_key="job.id", index=True)
+    skill_gap: str = Field(index=True)
+    module_title: str
+    difficulty_level: str = Field(default="Mid-Senior") # Junior, Mid, Senior, Staff/Principal
+    company_context_summary: Optional[str] = Field(default="")
+    reading_markdown: str = Field(sa_column=Column(Text))
+    quiz_questions: List[Dict[str, Any]] = Field(default=[], sa_column=Column(JSON))
+    status: str = Field(default="NOT_STARTED") # NOT_STARTED, IN_PROGRESS, MASTERED
+    best_score: Optional[int] = Field(default=None)
+    attempts_count: int = Field(default=0)
+    completed_at: Optional[datetime] = Field(default=None)
+    graduated_to_profile: bool = Field(default=False)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
