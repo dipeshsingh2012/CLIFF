@@ -99,5 +99,27 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     });
     return true;
   }
+
+  if (request.action === "ingest_job") {
+    fetch(`${API_BASE}/jobs`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(request.jobData)
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`HTTP ${res.status}: ${errText}`);
+        }
+        const data = await res.json();
+        sendResponse({ success: true, data });
+      })
+      .catch(err => {
+        console.warn("[CLIFF Background] Ingest error:", err);
+        sendResponse({ success: false, error: err.message });
+      });
+    return true; // Keep message channel open for async response
+  }
 });
+
 

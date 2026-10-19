@@ -381,36 +381,56 @@
         <div style="font-size: 12px; font-weight: 600; color: #2dd4bf;">Analyzing & Ingesting...</div>
       `;
 
-      try {
-        const response = await fetch(`${API_BASE}/jobs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(jobData)
-        });
-
-        if (response.ok) {
-          const result = await response.json();
-          const score = result.job?.match_score || result.intelligence?.match_score || 80;
-          badge.innerHTML = `
-            <div style="display: flex; align-items: center; gap: 8px;">
-              <span style="color: #34d399; font-weight: bold;">✓ Ingested (${score}% Match!)</span>
-              <a href="http://localhost:5173" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 11px;">Open Dashboard</a>
-            </div>
-          `;
-          badge.style.borderColor = "#34d399";
-        } else {
-          throw new Error("Backend response error: " + response.status);
+      // Send ingestion payload via background worker (not subject to webpage CORS)
+      const sendViaBackground = () => new Promise((resolve, reject) => {
+        if (!chrome.runtime?.sendMessage) {
+          return reject(new Error("chrome.runtime not available"));
         }
+        chrome.runtime.sendMessage({ action: "ingest_job", jobData }, (response) => {
+          if (chrome.runtime.lastError) {
+            return reject(new Error(chrome.runtime.lastError.message));
+          }
+          if (!response || !response.success) {
+            return reject(new Error(response?.error || "Ingestion failed"));
+          }
+          resolve(response.data);
+        });
+      });
+
+      try {
+        let result;
+        try {
+          result = await sendViaBackground();
+        } catch (bgErr) {
+          console.warn("[CLIFF] Background proxy failed, attempting direct fetch:", bgErr);
+          const response = await fetch(`${API_BASE}/jobs`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(jobData)
+          });
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          result = await response.json();
+        }
+
+        const score = result.job?.match_score || result.intelligence?.match_score || 80;
+        badge.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="color: #34d399; font-weight: bold;">✓ Ingested (${score}% Match!)</span>
+            <a href="https://cliff-one-beryl.vercel.app" target="_blank" style="color: #38bdf8; text-decoration: underline; font-size: 11px;">Open Dashboard</a>
+          </div>
+        `;
+        badge.style.borderColor = "#34d399";
       } catch (err) {
         console.warn("[CLIFF] Ingest failed:", err);
         badge.innerHTML = `
-          <div style="color: #f87171; font-size: 11px;">CLIFF Backend Offline (Cloud Run)</div>
+          <div style="color: #f87171; font-size: 11px;">CLIFF Sync Failed: ${err.message || 'Check Console'}</div>
         `;
         setTimeout(() => {
           injectFloatingCliffBadge();
-        }, 3000);
+        }, 3500);
       }
     };
+
 
     document.body.appendChild(badge);
   }
