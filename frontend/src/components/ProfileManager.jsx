@@ -127,13 +127,13 @@ export default function ProfileManager({ onProfileUpdated }) {
 
         setUploadStatus("Uploaded to bucket! Cloud event dispatched, analyzing with Vertex AI...");
 
-        // 2. Smart Event Status Polling (Checks PostgreSQL task status every 1.5s)
+        // 2. Smart Event Status Polling (Checks PostgreSQL task status every 3s)
         let attempts = 0;
-        const maxAttempts = 35; // 35 * 1.5s = ~50s maximum wait
+        const maxAttempts = 20; // 20 * 3s = 60s maximum wait
         let completedTask = null;
 
         while (attempts < maxAttempts) {
-          await new Promise((resolve) => setTimeout(resolve, 1500));
+          await new Promise((resolve) => setTimeout(resolve, 3000));
           attempts++;
 
           try {
