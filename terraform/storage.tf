@@ -14,7 +14,7 @@ resource "google_storage_bucket" "resumes" {
   cors {
     origin          = var.cors_origins
     method          = ["GET", "PUT", "HEAD", "OPTIONS"]
-    response_header = ["Content-Type", "x-goog-resumable", "Access-Control-Allow-Origin"]
+    response_header = ["*"]
     max_age_seconds = 3600
   }
 
@@ -55,9 +55,10 @@ resource "google_storage_bucket" "tailored_resumes" {
   cors {
     origin          = var.cors_origins
     method          = ["GET", "HEAD", "OPTIONS"]
-    response_header = ["Content-Type", "Access-Control-Allow-Origin"]
+    response_header = ["*"]
     max_age_seconds = 3600
   }
+
 
   depends_on = [google_project_service.apis]
 }

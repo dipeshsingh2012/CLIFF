@@ -20,8 +20,14 @@ variable "environment" {
 variable "cors_origins" {
   description = "Allowed origins for GCS CORS and Cloud Run CORS"
   type        = list(string)
-  default     = ["http://localhost:5173", "http://127.0.0.1:5173"]
+  default     = [
+    "https://cliff-one-beryl.vercel.app",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "*"
+  ]
 }
+
 
 variable "db_tier" {
   description = "Machine tier for Cloud SQL PostgreSQL instance"

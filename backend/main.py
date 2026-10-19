@@ -53,14 +53,21 @@ app = FastAPI(
     lifespan=lifespan
 )
 
-# CORS configuration allowing Chrome extensions and React frontend
+# CORS configuration allowing Chrome extensions and React frontend (including Vercel)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "https://cliff-one-beryl.vercel.app",
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 def seed_sample_jobs(session: Session):
     profile = session.exec(select(UserProfile)).first()
