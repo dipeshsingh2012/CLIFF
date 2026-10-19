@@ -133,14 +133,19 @@ export async function getSignedUploadUrl(filename, contentType = "application/pd
 
 export async function uploadDirectToStorage(signedUrl, file, signedContentType = null) {
   const contentType = signedContentType || file.type || "application/pdf";
+  const headers = {};
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
   const res = await fetch(signedUrl, {
     method: "PUT",
-    headers: {
-      "Content-Type": contentType
-    },
+    headers,
     body: file
   });
-  if (!res.ok) throw new Error(`Direct storage upload failed (HTTP ${res.status})`);
+  if (!res.ok) {
+    const errorBody = await res.text().catch(() => "");
+    throw new Error(`Direct storage upload failed (HTTP ${res.status}): ${errorBody || res.statusText}`);
+  }
   return true;
 }
 

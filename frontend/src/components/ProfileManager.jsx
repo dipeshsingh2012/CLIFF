@@ -114,7 +114,10 @@ export default function ProfileManager({ onProfileUpdated }) {
     try {
       // 1. Request signed URL and asynchronous tracking task
       setUploadStatus("Checking storage configuration...");
-      const signedData = await getSignedUploadUrl(file.name, file.type || "application/pdf").catch(() => ({ mode: "local" }));
+      const signedData = await getSignedUploadUrl(file.name, file.type || "application/pdf").catch((err) => {
+        console.warn("Could not request signed URL, falling back to direct upload:", err);
+        return { mode: "local" };
+      });
 
       let result;
       if (signedData && signedData.mode === "gcs" && signedData.signed_url) {
@@ -142,7 +145,9 @@ export default function ProfileManager({ onProfileUpdated }) {
               completedTask = taskData;
               break;
             } else if (taskData.status === "FAILED") {
-              throw new Error(taskData.error_message || "Async resume parsing failed in cloud event handler.");
+              console.warn("[Async Task Failed]", taskData.error_message);
+              // Break early so backup processor can attempt recovery or surface specific error
+              break;
             }
           } catch (pollErr) {
             console.warn("[Polling Note]", pollErr.message);

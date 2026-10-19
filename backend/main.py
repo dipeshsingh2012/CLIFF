@@ -1,9 +1,10 @@
 import io
 import os
 import re
+import json
 import uuid
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Optional, Dict, Any
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
@@ -563,11 +564,11 @@ def get_signed_upload_url(
             else:
                 content_type = "application/pdf"
 
+        # Omit content_type from signed headers so browser upload is not rejected if MIME types vary
         sign_kwargs = {
             "version": "v4",
             "expiration": timedelta(minutes=15),
             "method": "PUT",
-            "content_type": content_type
         }
 
         # Handle Compute Engine / Cloud Run credentials without in-memory private key
@@ -733,6 +734,15 @@ async def handle_resume_uploaded_event(
 
     except Exception as e:
         logger.error(f"[Pub/Sub Event] Error processing resume upload event: {e}", exc_info=True)
+        if not task:
+            try:
+                if 'object_name' in locals() and object_name:
+                    filename_part = object_name.split("/")[-1]
+                    t_id = filename_part.split("_")[0] if "_" in filename_part else None
+                    if t_id:
+                        task = session.exec(select(ResumeUploadTask).where(ResumeUploadTask.task_id == t_id)).first()
+            except Exception:
+                pass
         if task:
             task.status = "FAILED"
             task.error_message = str(e)
