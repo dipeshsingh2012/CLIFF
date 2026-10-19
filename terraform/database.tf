@@ -5,11 +5,12 @@ resource "random_password" "db_password" {
 }
 
 resource "google_sql_database_instance" "postgres" {
-  name             = "cliff-db-${var.environment}-${random_id.bucket_suffix.hex}"
-  database_version = "POSTGRES_16"
-  region           = var.region
-  project          = var.project_id
+  name                = "cliff-db-${var.environment}-${random_id.bucket_suffix.hex}"
+  database_version    = "POSTGRES_16"
+  region              = var.region
+  project             = var.project_id
   deletion_protection = false # Set to true for strict production retention
+
 
   settings {
     tier              = var.db_tier

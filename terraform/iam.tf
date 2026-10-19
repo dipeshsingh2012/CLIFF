@@ -42,11 +42,12 @@ resource "google_service_account_iam_member" "token_creator_self" {
 
 # 5. Cloud Build Service Account: Allows Cloud Build to push to Artifact Registry
 resource "google_project_iam_member" "cloudbuild_artifactregistry" {
-  project = var.project_id
-  role    = "roles/artifactregistry.writer"
-  member  = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
+  project    = var.project_id
+  role       = "roles/artifactregistry.writer"
+  member     = "serviceAccount:${data.google_project.project.number}@cloudbuild.gserviceaccount.com"
   depends_on = [google_project_service.apis]
 }
+
 
 # 6. GitHub Actions CI/CD Deployer Service Account
 resource "google_project_iam_member" "gh_actions_deployer_editor" {

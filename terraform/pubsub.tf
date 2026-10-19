@@ -23,10 +23,10 @@ resource "google_pubsub_topic_iam_member" "gcs_publisher" {
 
 # 3. GCS Bucket Notification (OBJECT_FINALIZE on resumes/ prefix)
 resource "google_storage_notification" "resume_upload_notification" {
-  bucket         = google_storage_bucket.resumes.name
-  payload_format = "JSON_API_V1"
-  topic          = google_pubsub_topic.resume_uploaded.id
-  event_types    = ["OBJECT_FINALIZE"]
+  bucket             = google_storage_bucket.resumes.name
+  payload_format     = "JSON_API_V1"
+  topic              = google_pubsub_topic.resume_uploaded.id
+  event_types        = ["OBJECT_FINALIZE"]
   object_name_prefix = "resumes/"
 
   depends_on = [
@@ -34,6 +34,7 @@ resource "google_storage_notification" "resume_upload_notification" {
     google_project_service.apis
   ]
 }
+
 
 # 4. Topic: Fired when AI extraction & analysis completes
 resource "google_pubsub_topic" "resume_analyzed" {
