@@ -37,9 +37,14 @@ jobs:
   terraform:
     name: Terraform Plan & Apply
     runs-on: ubuntu-latest
+    env:
+      TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
+      TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
+      TF_VAR_environment: 'prod'
     defaults:
       run:
         working-directory: terraform
+
 
     steps:
       - name: Checkout Code

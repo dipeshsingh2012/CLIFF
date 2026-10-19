@@ -1,7 +1,9 @@
 variable "project_id" {
   description = "The Google Cloud project ID"
   type        = string
+  default     = "cliff-512020"
 }
+
 
 variable "region" {
   description = "GCP Region for Cloud Run, Cloud SQL, and GCS"
