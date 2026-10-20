@@ -1,6 +1,19 @@
+"""CLIFF AI Engine.
+
+Provides resilient intelligence extraction, resume tailoring, cover letter generation,
+ATS answer synthesis, and job-anchored theoretical LMS module authoring.
+
+Architecture:
+- Primary Provider: Google Vertex AI Gemini (IAM / ADC keyless authentication).
+- Fallback Provider: OpenAI API (gpt-4o-mini if configured).
+- Safety Net: Deterministic domain-specific heuristics ensuring 100% service availability
+  even under total network partition or upstream LLM rate-limiting.
+"""
+
 import os
 import re
 import json
+import time
 import logging
 from typing import List, Dict, Any, Optional
 from dotenv import load_dotenv
@@ -11,6 +24,10 @@ logger = logging.getLogger("cliff.ai")
 
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "cliff-512020")
+GCP_REGION = os.getenv("GCP_REGION", "us-central1")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+USE_VERTEX_AI = os.getenv("USE_VERTEX_AI", "true").lower() in ("true", "1", "yes")
 
 COMMON_HARD_SKILLS = [
     "Python", "JavaScript", "TypeScript", "Java", "C++", "C#", "Go", "Rust", "Ruby", "PHP", "Swift", "Kotlin", "Scala",
@@ -30,19 +47,11 @@ COMMON_SOFT_SKILLS = [
     "Stakeholder Management", "Adaptability", "Ownership", "Critical Thinking"
 ]
 
-GCP_PROJECT_ID = os.getenv("GCP_PROJECT_ID", "cliff-512020")
-GCP_REGION = os.getenv("GCP_REGION", "us-central1")
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-USE_VERTEX_AI = os.getenv("USE_VERTEX_AI", "true").lower() in ("true", "1", "yes")
-
 _client = None
 
+
 def get_genai_client():
-    """
-    Returns an authenticated Google GenAI client.
-    Priority 1: Native Vertex AI with Application Default Credentials (IAM / Keyless)
-    Priority 2: Gemini Developer API Key (if provided in environment)
-    """
+    """Initializes and caches the Google GenAI client using Vertex AI or Developer API Key."""
     global _client
     if _client is not None:
         return _client
@@ -51,26 +60,27 @@ def get_genai_client():
 
     if USE_VERTEX_AI and GCP_PROJECT_ID:
         try:
-            logger.info(f"[AI Engine] Initializing Vertex AI Gemini client (project={GCP_PROJECT_ID}, location={GCP_REGION})")
+            logger.info(f"[AI Engine] Initializing Vertex AI client (project={GCP_PROJECT_ID}, location={GCP_REGION})")
             _client = genai.Client(vertexai=True, project=GCP_PROJECT_ID, location=GCP_REGION)
             return _client
         except Exception as e:
-            logger.warning(f"[AI Engine] Vertex AI initialization failed: {e}")
+            logger.warning(f"[AI Engine] Vertex AI client initialization failed: {e}")
 
     if GEMINI_API_KEY:
         try:
-            logger.info("[AI Engine] Initializing Gemini API Key client")
+            logger.info("[AI Engine] Initializing Gemini Developer API Key client")
             _client = genai.Client(api_key=GEMINI_API_KEY)
             return _client
         except Exception as e:
-            logger.warning(f"[AI Engine] Gemini API Key initialization failed: {e}")
+            logger.warning(f"[AI Engine] Gemini API Key client initialization failed: {e}")
 
     return None
 
+
 def _safe_parse_json(raw_text: str) -> Optional[dict]:
-    """
-    Resiliently parse JSON emitted by LLMs.
-    Handles markdown fences, trailing commas, and newline-separated properties missing commas.
+    """Resiliently parses and sanitizes JSON emitted by LLMs.
+    
+    Handles markdown code fences, trailing commas, and newline-separated properties.
     """
     if not raw_text or not raw_text.strip():
         return None
@@ -103,7 +113,7 @@ def _safe_parse_json(raw_text: str) -> Optional[dict]:
         except Exception:
             pass
 
-        # 5. Repair missing commas between newline-delimited properties or array elements
+        # 5. Repair missing commas between newline-delimited properties
         repaired = re.sub(r"([0-9]|true|false|null|\"|\]|\})\s*\n\s*(\"|\{|\[)", r"\1,\n\2", no_trailing)
         try:
             return json.loads(repaired)
@@ -112,55 +122,71 @@ def _safe_parse_json(raw_text: str) -> Optional[dict]:
 
     return None
 
-def _call_gemini_json(prompt: str, system_instruction: str = "") -> Optional[dict]:
+
+def _call_llm_json(prompt: str, system_instruction: str = "", operation: str = "ai_task") -> Optional[dict]:
+    """Unified LLM execution gateway.
+    
+    Executes prompt against Vertex AI Gemini, falls back to OpenAI if configured,
+    and records latency and payload telemetry.
+    """
+    start_time = time.perf_counter()
+
+    # 1. Attempt Vertex AI / Gemini
     client = get_genai_client()
-    if not client:
-        return None
-    try:
-        from google.genai import types
-        response = client.models.generate_content(
-            model=GEMINI_MODEL,
-            contents=prompt,
-            config=types.GenerateContentConfig(
-                response_mime_type="application/json",
-                system_instruction=system_instruction or "You are CLIFF, an expert career intelligence and job matching AI. Return valid, well-formed JSON only with proper commas.",
+    if client:
+        try:
+            from google.genai import types
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    system_instruction=system_instruction or "You are CLIFF, an expert career intelligence AI. Return valid, well-formed JSON only.",
+                    temperature=0.2
+                )
+            )
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            if response.text:
+                parsed = _safe_parse_json(response.text)
+                if parsed is not None:
+                    logger.info(f"[AI Engine] [provider=vertex_gemini] [{operation}] completed in {duration_ms:.1f}ms")
+                    return parsed
+                logger.warning(f"[AI Engine] [provider=vertex_gemini] [{operation}] Failed to parse JSON response. Snippet: {response.text[:160]}")
+        except Exception as e:
+            duration_ms = (time.perf_counter() - start_time) * 1000.0
+            logger.warning(f"[AI Engine] [provider=vertex_gemini] [{operation}] failed after {duration_ms:.1f}ms: {e}")
+
+    # 2. Attempt OpenAI fallback
+    if OPENAI_API_KEY:
+        try:
+            from openai import OpenAI
+            oa_start = time.perf_counter()
+            oa_client = OpenAI(api_key=OPENAI_API_KEY)
+            response = oa_client.chat.completions.create(
+                model="gpt-4o-mini",
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": system_instruction or "You are CLIFF, an expert career intelligence AI. Return valid JSON only."},
+                    {"role": "user", "content": prompt}
+                ],
                 temperature=0.2
             )
-        )
-        if response.text:
-            parsed = _safe_parse_json(response.text)
-            if parsed is not None:
-                return parsed
-            logger.warning(f"[AI Engine] Could not safely parse Gemini JSON response. Snippet: {response.text[:200]}")
-    except Exception as e:
-        logger.warning(f"Vertex AI Gemini call failed, falling back: {e}")
+            duration_ms = (time.perf_counter() - oa_start) * 1000.0
+            content = response.choices[0].message.content
+            if content:
+                parsed = _safe_parse_json(content)
+                if parsed is not None:
+                    logger.info(f"[AI Engine] [provider=openai] [{operation}] completed in {duration_ms:.1f}ms")
+                    return parsed
+        except Exception as e:
+            logger.warning(f"[AI Engine] [provider=openai] [{operation}] failed: {e}")
+
+    logger.info(f"[AI Engine] [provider=heuristic] [{operation}] Falling back to deterministic heuristics.")
     return None
 
-def _call_openai_json(prompt: str, system_instruction: str = "") -> Optional[dict]:
-    if not OPENAI_API_KEY:
-        return None
-    try:
-        from openai import OpenAI
-        client = OpenAI(api_key=OPENAI_API_KEY)
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": system_instruction or "You are CLIFF, an expert career intelligence and job matching AI. Return valid JSON only."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.2
-        )
-        content = response.choices[0].message.content
-        if content:
-            parsed = _safe_parse_json(content)
-            if parsed is not None:
-                return parsed
-    except Exception as e:
-        logger.warning(f"OpenAI API call failed, falling back: {e}")
-    return None
 
 def _heuristic_skill_extraction(text: str) -> Dict[str, Any]:
+    """Fallback parser extracting skills, seniority level, workplace type, and duties via regex."""
     text_lower = text.lower()
     found_hard = []
     for skill in COMMON_HARD_SKILLS:
@@ -181,7 +207,7 @@ def _heuristic_skill_extraction(text: str) -> Dict[str, Any]:
         if "solve" in text_lower or "architect" in text_lower:
             found_soft.append("Problem Solving")
 
-    # Experience level
+    # Determine experience level
     level = "Mid-Senior"
     if re.search(r'\b(entry|junior|intern|associate|0-2|1-2 years)\b', text_lower):
         level = "Entry / Junior"
@@ -192,12 +218,11 @@ def _heuristic_skill_extraction(text: str) -> Dict[str, Any]:
     elif re.search(r'\b(mid|3-5|2-4 years)\b', text_lower):
         level = "Mid-Level"
 
-    # Responsibilities extraction (find bullet points or lines with verbs)
+    # Responsibilities extraction
     responsibilities = []
-    lines = text.split("\n")
-    for line in lines:
+    for line in text.split("\n"):
         cleaned = line.strip(" -•*>\t")
-        if len(cleaned) > 25 and len(cleaned) < 180:
+        if 25 < len(cleaned) < 180:
             if any(cleaned.lower().startswith(w) for w in ["build", "design", "develop", "lead", "architect", "collaborate", "create", "drive", "manage", "maintain", "scale"]):
                 responsibilities.append(cleaned)
                 if len(responsibilities) >= 4:
@@ -210,17 +235,16 @@ def _heuristic_skill_extraction(text: str) -> Dict[str, Any]:
             "Write robust, testable, and maintainable code adhering to industry best practices."
         ]
 
-    # Summary
     first_few_sentences = [s.strip() for s in text.replace("\n", " ").split(".") if len(s.strip()) > 30]
     summary = ". ".join(first_few_sentences[:2]) + "." if first_few_sentences else "Exciting engineering role focusing on high-impact scalable services."
 
-    # Salary extraction if present
+    # Salary extraction
     salary = ""
     salary_match = re.search(r'(\$\d{2,3}(?:,\d{3})*(?:\s*-\s*\$\d{2,3}(?:,\d{3})*)?(?:\s*(?:k|usd|per year|\/yr))?)', text, re.IGNORECASE)
     if salary_match:
         salary = salary_match.group(1)
 
-    # Mode of work / Workplace type extraction
+    # Workplace type
     workplace = ""
     if re.search(r'\b(remote|work from home|wfh|100% remote|anywhere|distributed)\b', text_lower):
         workplace = "Remote"
@@ -239,7 +263,9 @@ def _heuristic_skill_extraction(text: str) -> Dict[str, Any]:
         "workplace_type": workplace
     }
 
-def parse_job_intelligence(raw_description: str, title: str = "", company: str = "", candidate_skills: List[str] = None) -> Dict[str, Any]:
+
+def parse_job_intelligence(raw_description: str, title: str = "", company: str = "", candidate_skills: Optional[List[str]] = None) -> Dict[str, Any]:
+    """Extracts required skills, experience level, summary, and computes match score against candidate skills."""
     if candidate_skills is None:
         candidate_skills = []
 
@@ -262,22 +288,17 @@ Return a strict JSON object with:
   "workplace_type": "Remote" | "Hybrid" | "On-site" | ""
 }}
 """
-    result = _call_gemini_json(prompt)
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt)
+    result = _call_llm_json(prompt, operation="parse_job_intelligence")
     if not result:
         result = _heuristic_skill_extraction(raw_description)
     else:
-        # If LLM didn't return workplace_type or returned empty, fallback to heuristic check
         if not result.get("workplace_type"):
             heuristic_data = _heuristic_skill_extraction(raw_description)
             result["workplace_type"] = heuristic_data.get("workplace_type", "")
 
-    # Compute matched and missing skills against candidate skills
+    # Match computation
     extracted_hard = result.get("extracted_hard_skills", [])
     extracted_soft = result.get("extracted_soft_skills", [])
-    all_req_skills = extracted_hard + extracted_soft
-
     matched_skills = []
     missing_skills = []
 
@@ -294,11 +315,10 @@ Return a strict JSON object with:
         if not matched:
             missing_skills.append(req)
 
-    # Calculate match score (0-100)
-    if all_req_skills:
+    # Match score (0-100)
+    if extracted_hard or extracted_soft:
         hard_match_ratio = len(matched_skills) / max(len(extracted_hard), 1)
         base_score = int(hard_match_ratio * 80)
-        # Add baseline points for profile completeness & soft skills alignment
         soft_bonus = min(20, len(extracted_soft) * 5)
         match_score = min(98, max(25, base_score + soft_bonus))
     else:
@@ -310,7 +330,9 @@ Return a strict JSON object with:
 
     return result
 
+
 def tailor_resume(master_resume: str, job_title: str, company: str, job_description: str, matched_skills: List[str], missing_skills: List[str]) -> Dict[str, Any]:
+    """Tailors candidate achievements with quantifiable STAR bullets targeting the job description."""
     prompt = f"""
 You are an elite Career Strategist and Executive Resume Writer.
 Tailor the user's master resume specifically for the job "{job_title}" at "{company}".
@@ -340,17 +362,14 @@ Return a strict JSON object with:
   "match_strategy_notes": "2-3 strategic tips on how to pitch experience during interviews for this role"
 }}
 """
-    result = _call_gemini_json(prompt)
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt)
+    result = _call_llm_json(prompt, operation="tailor_resume")
     if not result:
-        # Heuristic fallback
         skills_str = ", ".join(matched_skills[:6]) or "FastAPI, React, Python, Distributed Systems"
         result = {
             "tailored_summary": f"Accomplished Senior Software Engineer specializing in {skills_str}. Proven track record of designing high-availability architectures and delivering scalable web applications aligned with {company}'s engineering objectives.",
             "tailored_experience": [
                 {
-                    "role": "Staff Software Engineer | CloudVenture Labs",
+                    "role": f"Senior Engineer | Scaled Platforms",
                     "bullets": [
                         f"Architected core services utilizing {matched_skills[0] if matched_skills else 'Python & FastAPI'}, scaling system throughput by 45% while maintaining sub-second latency.",
                         f"Led full-lifecycle delivery of distributed features directly addressing requirements analogous to {job_title}.",
@@ -358,7 +377,7 @@ Return a strict JSON object with:
                     ]
                 },
                 {
-                    "role": "Senior Full Stack Engineer | Apex Financial Tech",
+                    "role": "Full Stack Engineer | Production Applications",
                     "bullets": [
                         f"Developed high-throughput API microservices and dynamic user interfaces using {matched_skills[1] if len(matched_skills) > 1 else 'React and TypeScript'}.",
                         "Spearheaded database query optimization and caching, reducing P99 latency by 60%."
@@ -370,6 +389,7 @@ Return a strict JSON object with:
         }
     return result
 
+
 def generate_cover_letter(
     user_profile: dict, 
     job_title: str, 
@@ -378,6 +398,7 @@ def generate_cover_letter(
     tone: str = "Confident & Professional",
     hiring_manager: Optional[dict] = None
 ) -> Dict[str, Any]:
+    """Generates an executive cover letter and recruiter LinkedIn InMail message."""
     full_name = user_profile.get("full_name", "Applicant")
     skills = user_profile.get("skills", [])
     manager_name = hiring_manager.get("name") if hiring_manager else ""
@@ -402,21 +423,18 @@ Return a strict JSON object with:
   "key_hooks": ["Hook 1 highlighting relevant impact", "Hook 2 highlighting mission alignment"]
 }}
 """
-    result = _call_gemini_json(prompt)
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt)
+    result = _call_llm_json(prompt, operation="generate_cover_letter")
     if not result:
-        # High quality fallback
         top_skills = ", ".join(skills[:4]) if skills else "Python, FastAPI, React, and Cloud Architecture"
         salutation = f"Dear {manager_name}," if manager_name else f"Dear Hiring Team at {company},"
-        dm_greeting = f"Hi {manager_name.split()[0]}!" if manager_name else f"Hi there!"
+        dm_greeting = f"Hi {manager_name.split()[0]}!" if manager_name else "Hi there!"
         result = {
             "subject_line": f"Application for {job_title} - {full_name}",
             "cover_letter": f"""{salutation}
 
 I am writing to express my strong interest in the {job_title} role at {company}. Having followed your recent growth and engineering innovations, I am eager to contribute my background in {top_skills} to help advance your product roadmap.
 
-Throughout my career, I have focused on designing resilient distributed systems and building modern, responsive user experiences. At CloudVenture Labs, I architected an enterprise service that scaled to millions of daily requests while reducing latency by over 45%. My approach blends hands-on technical rigor with cross-functional leadership, ensuring that engineering solutions directly drive product milestones.
+Throughout my career, I have focused on designing resilient distributed systems and building modern, responsive user experiences. I architected enterprise services that scaled to millions of daily requests while reducing latency by over 45%. My approach blends hands-on technical rigor with cross-functional leadership, ensuring that engineering solutions directly drive product milestones.
 
 What excites me most about {company} is your commitment to high engineering standards and user-centric problem solving. I would welcome the opportunity to discuss how my technical expertise and passion for reliable systems can support your team's goals.
 
@@ -427,12 +445,14 @@ Warm regards,
             "recruiter_dm": f"{dm_greeting} I noticed {company} is hiring for a {job_title}. With my strong background in {top_skills} and scaling distributed systems, I'd love to connect and learn more about your team's current focus areas.",
             "key_hooks": [
                 f"Track record of scaling production systems with {skills[0] if skills else 'modern backends'} by 45%",
-                f"Proven synergy between frontend performance and backend microservices"
+                "Proven synergy between frontend performance and backend microservices"
             ]
         }
     return result
 
+
 def draft_ats_answer(question: str, job_context: str, user_profile: dict) -> Dict[str, Any]:
+    """Generates an authentic ATS application form response based on candidate preferences."""
     full_name = user_profile.get("full_name", "Applicant")
     skills = user_profile.get("skills", [])
     standard_answers = user_profile.get("standard_answers", {})
@@ -454,9 +474,7 @@ Return a strict JSON object with:
   "confidence_rating": "High" | "Medium"
 }}
 """
-    result = _call_gemini_json(prompt)
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt)
+    result = _call_llm_json(prompt, operation="draft_ats_answer")
     if not result:
         q_lower = question.lower()
         if "why" in q_lower and ("us" in q_lower or "company" in q_lower or "work" in q_lower):
@@ -477,12 +495,14 @@ Return a strict JSON object with:
         }
     return result
 
+
 def generate_learning_roadmap(
     missing_skills: List[str],
     job_title: str,
     company: Optional[str] = "",
     raw_description: Optional[str] = ""
 ) -> Dict[str, Any]:
+    """Produces an actionable 14-day skill bridging roadmap for identified technical gaps."""
     company_context = f' at "{company}"' if company else ''
     jd_snippet = f"\nRelevant Job Description & Requirements:\n\"\"\"{raw_description[:2000]}\"\"\"\n" if raw_description else ""
 
@@ -510,9 +530,7 @@ Return a strict JSON object with this exact structure:
   ]
 }}
 """
-    result = _call_gemini_json(prompt)
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt)
+    result = _call_llm_json(prompt, operation="generate_learning_roadmap")
     if not result:
         key_topics = []
         for s in (missing_skills[:5] or ["System Design", "Cloud Infrastructure"]):
@@ -533,6 +551,7 @@ Return a strict JSON object with this exact structure:
         }
     return result
 
+
 def generate_job_learning_module(
     skill_gap: str,
     job_title: str = "Software Engineer",
@@ -542,7 +561,7 @@ def generate_job_learning_module(
     seniority_level: str = "",
     raw_description: str = ""
 ) -> Dict[str, Any]:
-    # Determine difficulty level from seniority_level and job_title
+    """Generates an in-depth theoretical learning brief and 3-question scenario evaluation quiz."""
     lower_title = (job_title or "").lower()
     lower_sen = (seniority_level or "").lower()
     if any(k in lower_sen or k in lower_title for k in ["staff", "principal", "director", "architect"]):
@@ -624,11 +643,12 @@ Return a strict JSON object with this exact structure:
   ]
 }}
 """
-    result = _call_gemini_json(prompt, system_instruction="You are CLIFF Academy's principal curriculum architect. Produce deep, rigorous, context-anchored theoretical learning modules and scenario quizzes.")
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt, system_instruction="You are CLIFF Academy's principal curriculum architect. Produce deep, rigorous, context-anchored theoretical learning modules and scenario quizzes.")
+    result = _call_llm_json(
+        prompt, 
+        system_instruction="You are CLIFF Academy's principal curriculum architect. Produce deep, rigorous, context-anchored theoretical learning modules and scenario quizzes.",
+        operation="generate_job_learning_module"
+    )
     if not result:
-        # High quality deterministic fallback
         reading_md = f"""# {skill_gap} at Scale: Architectural Principles for {comp_name}
 
 ## 1. Architectural & Theoretical Foundations
@@ -707,6 +727,7 @@ When discussing {skill_gap} with hiring managers and staff engineers at {comp_na
 
 
 def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
+    """Extracts contact info, skills, and work history from plain text using regex heuristics."""
     text = resume_text.strip()
     lines = [line.strip() for line in text.split("\n") if line.strip()]
 
@@ -734,7 +755,6 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
         if "linkedin" not in cand and "github" not in cand:
             portfolio_url = cand if cand.startswith("http") else "https://" + cand
 
-    # Candidate Name: inspect first 3 non-empty lines
     full_name = "Candidate"
     for line in lines[:3]:
         if "@" not in line and "linkedin" not in line.lower() and "github" not in line.lower() and len(line.split()) in [2, 3, 4] and len(line) < 40:
@@ -749,7 +769,7 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
         if re.search(pattern, text_lower):
             found_skills.append(skill)
 
-    # 3. Modular Experience Blocks (Heuristic)
+    # 3. Modular Experience Blocks
     experience_blocks = []
     current_block = None
     bullet_regex = re.compile(r'^[\u2022\u25E6\u2043\u2219\*\-\–\—\•]\s*(.+)$')
@@ -766,7 +786,6 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
                         current_block["skills_used"].append(s)
             continue
 
-        # Check if line looks like a role/company heading with dates
         if date_regex.search(line) and ("|" in line or "–" in line or "-" in line or "," in line) and len(line) < 120:
             if current_block and current_block["bullets"]:
                 experience_blocks.append(current_block)
@@ -788,7 +807,6 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
     if current_block and current_block["bullets"]:
         experience_blocks.append(current_block)
 
-    # Fallback experience block if none structured
     if not experience_blocks:
         experience_blocks = [
             {
@@ -805,7 +823,6 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
             }
         ]
 
-    # Summary
     first_paragraph = ""
     for line in lines[1:6]:
         if len(line) > 50 and not bullet_regex.match(line) and "@" not in line:
@@ -839,7 +856,9 @@ def _heuristic_resume_parse(resume_text: str) -> Dict[str, Any]:
         }
     }
 
+
 def parse_resume_to_structured_profile(resume_text: str) -> Dict[str, Any]:
+    """Decomposes plain text resume into structured JSON with contact, skills, and modular experience."""
     prompt = f"""
 You are an expert Executive Resume Parser and ATS Specialist.
 Decompose the following resume plain text into a structured, high-accuracy JSON candidate profile.
@@ -887,19 +906,20 @@ Return a strict JSON object with this exact structure:
   }}
 }}
 """
-    result = _call_gemini_json(prompt, system_instruction="You are an expert ATS resume parsing engine. Decompose the resume into clean, structured JSON.")
-    if not result and OPENAI_API_KEY:
-        result = _call_openai_json(prompt, system_instruction="You are an expert ATS resume parsing engine. Decompose the resume into clean, structured JSON.")
+    result = _call_llm_json(
+        prompt, 
+        system_instruction="You are an expert ATS resume parsing engine. Decompose the resume into clean, structured JSON.",
+        operation="parse_resume_to_structured_profile"
+    )
     if not result:
         result = _heuristic_resume_parse(resume_text)
-
-    # Sanity checks on result
-    if not result.get("skills"):
-        heuristic = _heuristic_resume_parse(resume_text)
-        result["skills"] = heuristic["skills"]
-    if not result.get("experience_blocks"):
-        heuristic = _heuristic_resume_parse(resume_text)
-        result["experience_blocks"] = heuristic["experience_blocks"]
+    else:
+        # Single-pass fallback validation to prevent duplicate regex execution
+        if not result.get("skills") or not result.get("experience_blocks"):
+            heuristic = _heuristic_resume_parse(resume_text)
+            if not result.get("skills"):
+                result["skills"] = heuristic["skills"]
+            if not result.get("experience_blocks"):
+                result["experience_blocks"] = heuristic["experience_blocks"]
 
     return result
-

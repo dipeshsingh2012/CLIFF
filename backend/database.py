@@ -1,10 +1,16 @@
+"""CLIFF Database Engine & Initialization.
+
+Manages PostgreSQL connection pooling, optional Cloud SQL Unix socket resolution,
+schema migrations via SQLModel metadata, and idempotent default candidate profile seeding.
+"""
+
 import os
+import re
+import logging
 from typing import Generator
 from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine, Session, select
 from models import UserProfile, Job, JobIntelligence, ResumeUploadTask, JobLearningModule
-
-import logging
 
 logger = logging.getLogger("cliff.database")
 
@@ -15,43 +21,53 @@ DB_NAME = os.getenv("DB_NAME", "cliff")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "5432")
 
-# Construct PostgreSQL connection URL
+
+def _mask_db_url(url: str) -> str:
+    """Masks database passwords in connection URLs to prevent credential leakage in logs."""
+    return re.sub(r":([^:@]+)@", r":****@", url)
+
+
+# Resolve connection URL based on hosting environment
 if INSTANCE_CONNECTION_NAME:
-    # Connect via Cloud SQL Unix socket mounted at /cloudsql/<INSTANCE_CONNECTION_NAME>
+    # Direct Cloud SQL Unix socket mount (used in Cloud Run production)
     DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}"
-    logger.info(f"Connecting to Cloud SQL PostgreSQL: {INSTANCE_CONNECTION_NAME}/{DB_NAME}")
+    logger.info(f"Connecting to Cloud SQL PostgreSQL: instance={INSTANCE_CONNECTION_NAME}, db={DB_NAME}")
 elif os.getenv("DATABASE_URL"):
-    raw_url = os.getenv("DATABASE_URL")
+    raw_url = os.environ["DATABASE_URL"]
     if raw_url.startswith("postgresql://"):
         DATABASE_URL = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     else:
         DATABASE_URL = raw_url
-    logger.info("Connecting to PostgreSQL using DATABASE_URL")
+    logger.info(f"Connecting to database using configured DATABASE_URL: {_mask_db_url(DATABASE_URL)}")
 else:
     DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
-    logger.info(f"Connecting to PostgreSQL: {DB_HOST}:{DB_PORT}/{DB_NAME}")
+    logger.info(f"Connecting to standalone PostgreSQL: host={DB_HOST}:{DB_PORT}, db={DB_NAME}")
 
-# Connection pool settings
+# Engine connection pool configurations
 engine_args = {
     "echo": False,
 }
 if "sqlite" in DATABASE_URL:
+    # SQLite local test compatibility
     engine_args["connect_args"] = {"check_same_thread": False}
 else:
     engine_args.update({
         "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
         "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
-        "pool_pre_ping": True,
-        "pool_recycle": 1800,
+        "pool_pre_ping": True,  # Verify connection liveness before checkout
+        "pool_recycle": 1800,   # Prevent stale connections from terminating abruptly
     })
 
 engine = create_engine(DATABASE_URL, **engine_args)
 
 
 def create_db_and_tables():
-    """Initializes PostgreSQL tables and optional pgvector extension."""
+    """Initializes database schema and ensures default user profile exists.
+    
+    Safe to execute on every application cold-start (idempotent).
+    """
     try:
-        # Enable pgvector if permissions allow
+        # Enable pgvector if permissions allow; gracefully continue if uninstalled
         try:
             with engine.connect() as conn:
                 conn.execute(text("CREATE EXTENSION IF NOT EXISTS vector;"))
@@ -61,27 +77,34 @@ def create_db_and_tables():
 
         SQLModel.metadata.create_all(engine)
         seed_default_profile_if_empty()
-        logger.info("PostgreSQL database and tables initialized successfully.")
+        logger.info("Database schema and tables verified successfully.")
     except Exception as e:
-        logger.error(f"Error during PostgreSQL initialization: {e}", exc_info=True)
+        logger.error(f"Error during database initialization: {e}", exc_info=True)
+
 
 def get_session() -> Generator[Session, None, None]:
+    """FastAPI dependency yielding a transactional SQLModel database session."""
     with Session(engine) as session:
         yield session
 
+
 def seed_default_profile_if_empty():
+    """Seeds a baseline candidate profile if the UserProfile table is currently unpopulated."""
     with Session(engine) as session:
         existing = session.exec(select(UserProfile)).first()
-        if not existing:
-            default_profile = UserProfile(
-                full_name="Alex Rivera",
-                email="alex.rivera@example.com",
-                phone="+1 (555) 234-5678",
-                linkedin_url="https://linkedin.com/in/alex-rivera-dev",
-                github_url="https://github.com/alexrivera",
-                portfolio_url="https://alexrivera.dev",
-                location="San Francisco, CA / Remote",
-                master_resume_text="""ALEX RIVERA
+        if existing:
+            return
+
+        logger.info("[Database] No UserProfile found. Seeding default Alex Rivera candidate profile.")
+        default_profile = UserProfile(
+            full_name="Alex Rivera",
+            email="alex.rivera@example.com",
+            phone="+1 (555) 234-5678",
+            linkedin_url="https://linkedin.com/in/alex-rivera-dev",
+            github_url="https://github.com/alexrivera",
+            portfolio_url="https://alexrivera.dev",
+            location="San Francisco, CA / Remote",
+            master_resume_text="""ALEX RIVERA
 San Francisco, CA | alex.rivera@example.com | (555) 234-5678 | linkedin.com/in/alex-rivera-dev | github.com/alexrivera
 
 SUMMARY
@@ -109,45 +132,61 @@ Senior Full Stack Engineer | Apex Financial Tech | 2019 - 2022
 EDUCATION
 B.S. in Computer Science | University of California, Berkeley | 2015 - 2019
 """,
-                skills=[
-                    "Python", "FastAPI", "TypeScript", "React", "Next.js", "Docker", "Kubernetes",
-                    "AWS", "PostgreSQL", "SQLAlchemy", "Redis", "Tailwind CSS", "REST APIs",
-                    "GraphQL", "OpenAI API", "Google Gemini API", "RAG", "Vector Databases",
-                    "System Design", "CI/CD", "Git", "Microservices", "Node.js"
-                ],
-                experience_blocks=[
-                    {
-                        "company": "CloudVenture Labs",
-                        "title": "Staff Software Engineer",
-                        "location": "San Francisco, CA",
-                        "start_date": "2022-03",
-                        "end_date": "Present",
-                        "highlights": [
-                            "Architected enterprise AI automation platform using FastAPI, React, and PostgreSQL serving 2.5M+ daily requests.",
-                            "Decreased query latency by 80% via vector search and caching.",
-                            "Led team of 7 engineers and drove CI/CD pipelines."
-                        ]
-                    },
-                    {
-                        "company": "Apex Financial Tech",
-                        "title": "Senior Full Stack Engineer",
-                        "location": "San Francisco, CA",
-                        "start_date": "2019-06",
-                        "end_date": "2022-02",
-                        "highlights": [
-                            "Built high-throughput payment reconciliation microservices in Python and Node.js.",
-                            "Designed real-time React analytics dashboards with WebSocket telemetry."
-                        ]
-                    }
-                ],
-                standard_answers={
-                    "work_authorization": "Authorized to work in the United States without sponsorship.",
-                    "requires_sponsorship": "No",
-                    "notice_period": "2 weeks",
-                    "expected_salary": "$175,000 - $195,000 USD",
-                    "preferred_location": "Remote or Hybrid (San Francisco Bay Area)",
-                    "why_us": "I admire your mission of building impactful, developer-friendly products at scale. My experience designing reliable distributed systems and AI workflows aligns directly with your technical goals."
+            skills=[
+                "Python", "FastAPI", "TypeScript", "React", "Next.js", "Docker", "Kubernetes",
+                "AWS", "PostgreSQL", "SQLAlchemy", "Redis", "Tailwind CSS", "REST APIs",
+                "GraphQL", "OpenAI API", "Google Gemini API", "RAG", "Vector Databases",
+                "System Design", "CI/CD", "Git", "Microservices", "Node.js"
+            ],
+            experience_blocks=[
+                {
+                    "company": "CloudVenture Labs",
+                    "role": "Staff Software Engineer",
+                    "title": "Staff Software Engineer",
+                    "location": "San Francisco, CA",
+                    "start_date": "2022-03",
+                    "end_date": "Present",
+                    "skills_used": ["FastAPI", "PostgreSQL", "React", "Docker", "Kubernetes", "RAG"],
+                    "bullets": [
+                        "Architected enterprise AI automation platform using FastAPI, React, and PostgreSQL serving 2.5M+ daily requests.",
+                        "Decreased query latency by 80% via vector search and Redis caching.",
+                        "Led team of 7 engineers and drove CI/CD pipelines achieving 88% test coverage."
+                    ],
+                    "highlights": [
+                        "Architected enterprise AI automation platform using FastAPI, React, and PostgreSQL serving 2.5M+ daily requests.",
+                        "Decreased query latency by 80% via vector search and Redis caching.",
+                        "Led team of 7 engineers and drove CI/CD pipelines achieving 88% test coverage."
+                    ]
+                },
+                {
+                    "company": "Apex Financial Tech",
+                    "role": "Senior Full Stack Engineer",
+                    "title": "Senior Full Stack Engineer",
+                    "location": "San Francisco, CA",
+                    "start_date": "2019-06",
+                    "end_date": "2022-02",
+                    "skills_used": ["Python", "Node.js", "React", "TypeScript", "PostgreSQL", "Redis"],
+                    "bullets": [
+                        "Built high-throughput payment reconciliation microservices in Python and Node.js across 12 banking partners.",
+                        "Designed real-time React analytics dashboards with WebSocket telemetry for 80,000 active users.",
+                        "Reduced read latency by 60% via strategic Redis caching and query indexing."
+                    ],
+                    "highlights": [
+                        "Built high-throughput payment reconciliation microservices in Python and Node.js across 12 banking partners.",
+                        "Designed real-time React analytics dashboards with WebSocket telemetry for 80,000 active users.",
+                        "Reduced read latency by 60% via strategic Redis caching and query indexing."
+                    ]
                 }
-            )
-            session.add(default_profile)
-            session.commit()
+            ],
+            standard_answers={
+                "work_authorization": "Authorized to work in the United States without sponsorship.",
+                "requires_sponsorship": "No",
+                "notice_period": "2 weeks",
+                "expected_salary": "$175,000 - $195,000 USD",
+                "preferred_location": "Remote or Hybrid (San Francisco Bay Area)",
+                "why_us": "I admire your mission of building impactful, developer-friendly products at scale. My experience designing reliable distributed systems and AI workflows aligns directly with your technical goals."
+            }
+        )
+        session.add(default_profile)
+        session.commit()
+        logger.info("[Database] Default candidate profile successfully seeded.")
