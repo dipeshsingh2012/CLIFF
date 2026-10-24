@@ -3,7 +3,7 @@ resource "google_service_account" "cliff_sa" {
   account_id   = "cliff-app-sa-${var.environment}"
   display_name = "CLIFF Serverless Application Service Account"
   project      = var.project_id
-  description  = "Identity for Cloud Run and Cloud Run functions to access Cloud SQL, GCS, Vertex AI, and Secret Manager"
+  description  = "Identity for Cloud Run and Cloud Run functions to access GCS, Vertex AI, and Secret Manager"
 }
 
 # 1. GCS Bucket Access: Read/Write to resume and tailored buckets
@@ -19,14 +19,7 @@ resource "google_storage_bucket_iam_member" "tailored_admin" {
   member = "serviceAccount:${google_service_account.cliff_sa.email}"
 }
 
-# 2. Cloud SQL Connectivity
-resource "google_project_iam_member" "cloudsql_client" {
-  project = var.project_id
-  role    = "roles/cloudsql.client"
-  member  = "serviceAccount:${google_service_account.cliff_sa.email}"
-}
-
-# 3. Vertex AI (Gemini 2.5 Flash / Embeddings) without API keys
+# 2. Vertex AI (Gemini 2.5 Flash / Embeddings) without API keys
 resource "google_project_iam_member" "vertex_ai_user" {
   project = var.project_id
   role    = "roles/aiplatform.user"

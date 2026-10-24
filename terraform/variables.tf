@@ -6,7 +6,7 @@ variable "project_id" {
 
 
 variable "region" {
-  description = "GCP Region for Cloud Run, Cloud SQL, and GCS"
+  description = "GCP Region for Cloud Run and GCS"
   type        = string
   default     = "us-central1"
 }
@@ -28,23 +28,11 @@ variable "cors_origins" {
   ]
 }
 
-
-variable "db_tier" {
-  description = "Machine tier for Cloud SQL PostgreSQL instance"
+variable "database_url" {
+  description = "Neon Serverless PostgreSQL connection string (DATABASE_URL)"
   type        = string
-  default     = "db-custom-1-3840" # 1 vCPU, 3.75 GB RAM (production ready with pgvector)
-}
-
-variable "db_name" {
-  description = "Name of the PostgreSQL database"
-  type        = string
-  default     = "cliff"
-}
-
-variable "db_user" {
-  description = "Username for Cloud SQL PostgreSQL"
-  type        = string
-  default     = "cliff_app"
+  sensitive   = true
+  default     = ""
 }
 
 variable "backend_image" {

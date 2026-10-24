@@ -41,6 +41,7 @@ jobs:
       TF_VAR_project_id: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
       TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
       TF_VAR_environment: 'prod'
+      TF_VAR_database_url: ${{ secrets.DATABASE_URL }}
       CLOUDSDK_CORE_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
       CLOUDSDK_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
       GCLOUD_PROJECT: ${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}
@@ -104,6 +105,19 @@ jobs:
         run: |
           PROJECT_ID="${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}"
           terraform init -backend-config="bucket=cliff-tfstate-${PROJECT_ID}"
+
+      - name: Detach Cloud SQL Sub-Resources from State
+        run: |
+          terraform state rm google_sql_database.cliff || true
+          terraform state rm google_sql_user.app_user || true
+          gcloud run services update cliff-backend-prod \
+            --region="${{ vars.GCP_REGION || 'us-central1' }}" \
+            --project="${{ vars.GCP_PROJECT_ID || 'cliff-512020' }}" \
+            --clear-cloudsql-instances \
+            --remove-secrets=DB_PASSWORD,DATABASE_URL \
+            --remove-env-vars=INSTANCE_CONNECTION_NAME,DB_NAME,DB_USER \
+            --update-env-vars="DATABASE_URL=${TF_VAR_database_url}" \
+            --quiet || true
 
       - name: Terraform Validate
         run: terraform validate

@@ -58,42 +58,8 @@ resource "google_cloud_run_v2_service" "backend" {
       }
 
       env {
-        name  = "INSTANCE_CONNECTION_NAME"
-        value = google_sql_database_instance.postgres.connection_name
-      }
-
-      env {
-        name  = "DB_NAME"
-        value = var.db_name
-      }
-
-      env {
-        name  = "DB_USER"
-        value = var.db_user
-      }
-
-      # Mount Cloud SQL password securely from Secret Manager
-      env {
-        name = "DB_PASSWORD"
-        value_source {
-          secret_key_ref {
-            secret  = google_secret_manager_secret.db_password_secret.secret_id
-            version = "latest"
-          }
-        }
-      }
-
-      # Cloud SQL Unix Socket Volume Mount
-      volume_mounts {
-        name       = "cloudsql"
-        mount_path = "/cloudsql"
-      }
-    }
-
-    volumes {
-      name = "cloudsql"
-      cloud_sql_instance {
-        instances = [google_sql_database_instance.postgres.connection_name]
+        name  = "DATABASE_URL"
+        value = var.database_url
       }
     }
   }
@@ -107,10 +73,7 @@ resource "google_cloud_run_v2_service" "backend" {
   }
 
   depends_on = [
-    google_project_service.apis,
-    google_sql_database.cliff,
-    google_sql_user.app_user,
-    google_secret_manager_secret_iam_member.sa_secret_access
+    google_project_service.apis
   ]
 }
 

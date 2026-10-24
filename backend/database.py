@@ -1,20 +1,24 @@
 """CLIFF Database Engine & Initialization.
 
-Manages PostgreSQL connection pooling, optional Cloud SQL Unix socket resolution,
-schema migrations via SQLModel metadata, and idempotent default candidate profile seeding.
+Manages Neon Serverless PostgreSQL connection pooling, schema migrations via SQLModel
+metadata, and idempotent default candidate profile seeding.
 """
 
 import os
 import re
 import logging
+from pathlib import Path
 from typing import Generator
+from dotenv import load_dotenv
 from sqlalchemy import text
 from sqlmodel import SQLModel, create_engine, Session, select
 from models import UserProfile, Job, JobIntelligence, ResumeUploadTask, JobLearningModule
 
+# Load backend/.env if present
+load_dotenv(Path(__file__).resolve().parent / ".env")
+
 logger = logging.getLogger("cliff.database")
 
-INSTANCE_CONNECTION_NAME = os.getenv("INSTANCE_CONNECTION_NAME")
 DB_USER = os.getenv("DB_USER", "cliff_app")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "")
 DB_NAME = os.getenv("DB_NAME", "cliff")
@@ -27,14 +31,12 @@ def _mask_db_url(url: str) -> str:
     return re.sub(r":([^:@]+)@", r":****@", url)
 
 
-# Resolve connection URL based on hosting environment
-if INSTANCE_CONNECTION_NAME:
-    # Direct Cloud SQL Unix socket mount (used in Cloud Run production)
-    DATABASE_URL = f"postgresql+psycopg2://{DB_USER}:{DB_PASSWORD}@/{DB_NAME}?host=/cloudsql/{INSTANCE_CONNECTION_NAME}"
-    logger.info(f"Connecting to Cloud SQL PostgreSQL: instance={INSTANCE_CONNECTION_NAME}, db={DB_NAME}")
-elif os.getenv("DATABASE_URL"):
-    raw_url = os.environ["DATABASE_URL"]
-    if raw_url.startswith("postgresql://"):
+# Resolve connection URL (Neon Serverless PostgreSQL / DATABASE_URL primary)
+if os.getenv("DATABASE_URL"):
+    raw_url = os.environ["DATABASE_URL"].strip()
+    if raw_url.startswith("postgres://"):
+        DATABASE_URL = raw_url.replace("postgres://", "postgresql+psycopg2://", 1)
+    elif raw_url.startswith("postgresql://"):
         DATABASE_URL = raw_url.replace("postgresql://", "postgresql+psycopg2://", 1)
     else:
         DATABASE_URL = raw_url
@@ -54,8 +56,14 @@ else:
     engine_args.update({
         "pool_size": int(os.getenv("DB_POOL_SIZE", "5")),
         "max_overflow": int(os.getenv("DB_MAX_OVERFLOW", "10")),
-        "pool_pre_ping": True,  # Verify connection liveness before checkout
-        "pool_recycle": 1800,   # Prevent stale connections from terminating abruptly
+        "pool_pre_ping": True,  # Verify connection liveness before checkout (essential for serverless Neon)
+        "pool_recycle": int(os.getenv("DB_POOL_RECYCLE", "300")),  # Recycle before idle serverless timeouts
+        "connect_args": {
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 3,
+        },
     })
 
 engine = create_engine(DATABASE_URL, **engine_args)

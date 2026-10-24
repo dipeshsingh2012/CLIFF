@@ -224,10 +224,10 @@ flowchart TD
 | **GCP Providers & APIs** | [`terraform/main.tf`](file:///home/dipes/projects/CLIFF/terraform/main.tf) | **Ready** | Enables 10 core APIs: Cloud Run, Cloud SQL Admin, Storage, Secret Manager, Vertex AI, IAM Credentials, Artifact Registry, Cloud Tasks, Eventarc, Cloud Build. |
 | **Artifact Registry** | [`terraform/artifact_registry.tf`](file:///home/dipes/projects/CLIFF/terraform/artifact_registry.tf) | **Ready** | Dedicated Docker repository `cliff-repo` for container builds. |
 | **GCS Buckets & CORS** | [`terraform/storage.tf`](file:///home/dipes/projects/CLIFF/terraform/storage.tf) | **Ready** | Provisions `cliff-resumes` & `cliff-tailored` with client-to-storage CORS, versioning, and Coldline lifecycle. |
-| **Cloud SQL PostgreSQL 16** | [`terraform/database.tf`](file:///home/dipes/projects/CLIFF/terraform/database.tf) | **Ready** | Automated DB password generation, custom tier, SSD autoscaling, query insights. |
+| **Neon Serverless PostgreSQL** | [`backend/database.py`](file:///home/dipes/projects/CLIFF/backend/database.py) | **Live** | Migrated from GCP Cloud SQL to Neon Serverless Postgres (`cliff` database) with PgBouncer connection pooling (`pool_pre_ping=True`, `pool_recycle=300`, TCP keepalives) for cost savings. |
 | **IAM Service Accounts** | [`terraform/iam.tf`](file:///home/dipes/projects/CLIFF/terraform/iam.tf) | **Ready** | Least-privilege `cliff-app-sa` with Token Creator and AI Platform User + Cloud Build Artifact Registry Writer. |
-| **Secret Manager** | [`terraform/secrets.tf`](file:///home/dipes/projects/CLIFF/terraform/secrets.tf) | **Ready** | Auto-managed DB credentials secret with accessor role binding. |
-| **Cloud Run v2 Service** | [`terraform/cloud_run.tf`](file:///home/dipes/projects/CLIFF/terraform/cloud_run.tf) | **Ready** | Cloud SQL Unix socket mount (`/cloudsql`), Secret Manager env resolution, scale-to-zero, lifecycle image protection. |
+| **Secret Manager** | [`terraform/secrets.tf`](file:///home/dipes/projects/CLIFF/terraform/secrets.tf) | **Ready** | Stores Neon `DATABASE_URL` secret (`cliff-database-url-prod`) with accessor role binding for Cloud Run. |
+| **Cloud Run v2 Service** | [`terraform/cloud_run.tf`](file:///home/dipes/projects/CLIFF/terraform/cloud_run.tf) | **Ready** | Secret Manager `DATABASE_URL` env resolution, scale-to-zero, lifecycle image protection. |
 
 ### Resolved Deployment Issues
 

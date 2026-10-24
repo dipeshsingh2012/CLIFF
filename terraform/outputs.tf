@@ -13,11 +13,6 @@ output "gcs_tailored_bucket" {
   value       = google_storage_bucket.tailored_resumes.name
 }
 
-output "cloud_sql_connection_name" {
-  description = "The Cloud SQL instance connection name (PROJECT_ID:REGION:INSTANCE_NAME)"
-  value       = google_sql_database_instance.postgres.connection_name
-}
-
 output "service_account_email" {
   description = "The runtime Service Account email for CLIFF on Cloud Run"
   value       = google_service_account.cliff_sa.email

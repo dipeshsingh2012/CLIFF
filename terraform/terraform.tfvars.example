@@ -13,3 +13,7 @@ cors_origins = [
 # Cloud Run image (build and push via Google Cloud Build or Docker)
 backend_image = "us-central1-docker.pkg.dev/your-gcp-project-id/cliff-repo/cliff-backend:latest"
 
+# Neon Serverless PostgreSQL connection string
+database_url = "postgresql://user:password@ep-example-pooler.us-east-1.aws.neon.tech/cliff?sslmode=require"
+
+
